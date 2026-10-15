@@ -5,6 +5,7 @@ Newest entries first. Each entry: what was done, what's next, anything blocked.
 ## 2026-10-15 — Phase 0, Task 7: GitHub Actions CI
 
 **Done** — `.github/workflows/ci.yml`: `backend` (uv sync --frozen, ruff check + format, mypy strict, pytest incl. testcontainers integration tests), `frontend` (pnpm install --frozen-lockfile, eslint, tsc, vitest, next build), `compose-smoke` (full `docker compose up --build` from `.env.example`, curl `/readyz` on api and `/healthz` through the web proxy). CI badge in README.
+**Fix** — first CI run: frontend \`tsc\` failed on \`LayoutProps\` (a global type Next generates into \`.next/types\`; existed locally from earlier builds, absent on a clean runner). \`typecheck\` now runs \`next typegen && tsc --noEmit\`; reproduced and verified from a clean tree.
 **Next** — Phase 0 close-out docs + whole-phase review (Task 8).
 
 ## 2026-10-15 — Phase 0, Task 6: frontend skeleton
