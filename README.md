@@ -9,7 +9,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 5/8 tasks |
+| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 6/8 tasks |
 | 2 | Schema, RLS, auth, RBAC | ⏳ |
 | 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
 | 4 | LLM, citations, conversations, audit | ⏳ |
@@ -30,6 +30,7 @@ docker compose up --build
 | `db` | Postgres 16 + pgvector; bootstraps least-privilege roles on first start | `127.0.0.1:5432` |
 | `migrate` | One-shot: runs Alembic migrations as `veyl_owner`, then exits | — |
 | `api` | FastAPI, connects as `veyl_app` (no superuser, no RLS bypass), runs as non-root | http://127.0.0.1:8000/api/v1/docs |
+| `web` | Next.js dashboard; proxies `/api/*` to `api` so the browser sees one origin | http://127.0.0.1:3000 |
 
 All ports bind to `127.0.0.1` only. Reset everything (including the database volume) with `docker compose down -v`.
 
@@ -55,6 +56,18 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | `GET /api/v1/healthz` | Liveness — process is up |
 | `GET /api/v1/readyz` | Readiness — DB reachable as the app role; **503 if not** (fails closed) |
 | `GET /api/v1/docs` | OpenAPI UI |
+
+### Frontend (Node 24, pnpm 11)
+
+```bash
+cd frontend
+pnpm install
+pnpm dev                                  # http://localhost:3000, proxies /api/* to http://localhost:8000
+pnpm test                                 # Vitest + Testing Library
+pnpm lint && pnpm typecheck && pnpm build
+```
+
+Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + shadcn/ui. The UI never makes authorization decisions; the API is authoritative.
 
 ## Documentation
 

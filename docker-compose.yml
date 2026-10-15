@@ -48,5 +48,16 @@ services:
       timeout: 5s
       retries: 20
 
+  web:
+    build:
+      context: ./frontend
+      args:
+        API_INTERNAL_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+
 volumes:
   pgdata:

@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0, Task 6: frontend skeleton
+
+**Done** — `frontend/` via create-next-app (Next.js 16.4, React 19.3, Tailwind v4, React Compiler, cacheComponents), shadcn/ui initialised (base-nova, neutral), Vitest 5 + Testing Library + jsdom with a homepage test, `typecheck`/`test` scripts, `output: "standalone"`, `/api/:path*` rewrite to `API_INTERNAL_URL` (build arg; rewrites compile at build time). Multi-stage Dockerfile, non-root `veyl` user. Compose `web` service. Verified: `<title>Veyl</title>`, `/api/v1/healthz` and `/readyz` through the proxy.
+**Notes** — bumped `@types/node` to ^24 (vitest 5 peer + we run Node 24). Next 16 ships an `AGENTS.md` warning that APIs changed; checked its bundled docs for `rewrites`/`standalone` before using them.
+**Next** — GitHub Actions CI (Task 7).
+
 ## 2026-10-15 — Phase 0, Task 5: Docker Compose (db, migrate, api)
 
 **Done** — `backend/Dockerfile` (python:3.11-slim, uv-synced venv, non-root uid 10001), `docker-compose.yml`: `db` (pgvector:pg16, init script mounted, TCP healthcheck), one-shot `migrate` (only service with owner creds), `api` (app role, healthcheck on `/readyz`). Verified manually: db healthy → migrate exit 0 → api healthy; `/readyz` 200; api runs as 10001; api env has no owner creds; stopping db → `/readyz` 503.
