@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0 complete: repo setup
+
+**Summary** — monorepo in place: `backend/` (FastAPI factory, env-only settings, fail-closed `/readyz`, Alembic on the owner role, 13 tests incl. real-Postgres role checks), `frontend/` (Next.js 16 + Tailwind + shadcn + Vitest, `/api` proxy), `docker/postgres/init` least-privilege bootstrap shared by Compose and tests, `docker-compose.yml` (db → migrate → api → web, non-root, localhost-only ports), GitHub Actions CI green on all three jobs. Decisions D-012 (worker deferred to Phase 3) and D-013 (Next 16 defaults + typegen) recorded.
+**Next** — whole-phase code review, then the Phase 2 plan: schema, RLS, auth, RBAC.
+
 ## 2026-10-15 — Phase 0, Task 7: GitHub Actions CI
 
 **Done** — `.github/workflows/ci.yml`: `backend` (uv sync --frozen, ruff check + format, mypy strict, pytest incl. testcontainers integration tests), `frontend` (pnpm install --frozen-lockfile, eslint, tsc, vitest, next build), `compose-smoke` (full `docker compose up --build` from `.env.example`, curl `/readyz` on api and `/healthz` through the web proxy). CI badge in README.

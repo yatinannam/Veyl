@@ -535,7 +535,7 @@ Veyl/
 ## 13. Delivery phases
 | Phase | Scope | Done when |
 |---|---|---|
-| 0 | Repo setup: skeletons, tooling, compose, CI, docs scaffold | `docker compose up` starts all services with health endpoints; CI green |
+| 0 | Repo setup: skeletons, tooling, compose, CI, docs scaffold | `docker compose up` starts db, migrate, api, web with health endpoints; CI green (worker added in Phase 3 — D-012) |
 | 1 | (This spec) architecture + threat model | Spec approved |
 | 2 | Schema + migrations + RLS + auth + authz | RLS, auth, and authz tests pass |
 | 3 | Upload, worker ingestion, chunk ACL, embeddings, filtered retrieval, cache | Retrieval security tests (#1, #2, #4–#7) pass |

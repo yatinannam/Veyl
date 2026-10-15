@@ -11,7 +11,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 7/8 tasks |
+| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | ✅ done |
 | 2 | Schema, RLS, auth, RBAC | ⏳ |
 | 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
 | 4 | LLM, citations, conversations, audit | ⏳ |
@@ -70,6 +70,17 @@ pnpm lint && pnpm typecheck && pnpm build
 ```
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + shadcn/ui. The UI never makes authorization decisions; the API is authoritative.
+
+## Repository layout
+
+```
+backend/            FastAPI app (app/), Alembic migrations, pytest suite (unit/ + integration/)
+frontend/           Next.js dashboard, Vitest
+docker/postgres/    DB bootstrap: least-privilege roles + extensions (used by Compose AND tests)
+docs/               Spec, plans, decision log, dev log
+.github/workflows/  CI: backend, frontend, full-stack Compose smoke test
+docker-compose.yml  db → migrate → api → web
+```
 
 ## Documentation
 
