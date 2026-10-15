@@ -1,0 +1,34 @@
+# env
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# node
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# app data
+backend/uploads/
+
+# plan-execution scratch workspace
+.superpowers/
+
+# os/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0, Task 1: repo hygiene
+
+**Done** — `.gitattributes` forcing LF (repo lives on Windows with `core.autocrlf=true`; CRLF would break the Postgres init script), `.gitignore` (incl. `.env` and the `.superpowers/` plan-execution scratch dir), `.editorconfig`, `.env.example` with dev placeholders only.
+**Next** — backend skeleton (Task 2).
+
 ## 2026-10-15 — Phase 0 plan written
 
 **Done**
