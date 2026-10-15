@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0, Task 7: GitHub Actions CI
+
+**Done** — `.github/workflows/ci.yml`: `backend` (uv sync --frozen, ruff check + format, mypy strict, pytest incl. testcontainers integration tests), `frontend` (pnpm install --frozen-lockfile, eslint, tsc, vitest, next build), `compose-smoke` (full `docker compose up --build` from `.env.example`, curl `/readyz` on api and `/healthz` through the web proxy). CI badge in README.
+**Next** — Phase 0 close-out docs + whole-phase review (Task 8).
+
 ## 2026-10-15 — Phase 0, Task 6: frontend skeleton
 
 **Done** — `frontend/` via create-next-app (Next.js 16.4, React 19.3, Tailwind v4, React Compiler, cacheComponents), shadcn/ui initialised (base-nova, neutral), Vitest 5 + Testing Library + jsdom with a homepage test, `typecheck`/`test` scripts, `output: "standalone"`, `/api/:path*` rewrite to `API_INTERNAL_URL` (build arg; rewrites compile at build time). Multi-stage Dockerfile, non-root `veyl` user. Compose `web` service. Verified: `<title>Veyl</title>`, `/api/v1/healthz` and `/readyz` through the proxy.

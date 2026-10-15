@@ -1,5 +1,7 @@
 # Veyl
 
+[![CI](https://github.com/yatinannam/Veyl/actions/workflows/ci.yml/badge.svg)](https://github.com/yatinannam/Veyl/actions/workflows/ci.yml)
+
 **Permission-aware, multi-tenant RAG.** Veyl answers questions over internal company documents while enforcing tenant isolation and document-level permissions *inside retrieval* — unauthorized chunks never reach the LLM — and audits every retrieval.
 
 Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any OpenAI-compatible free LLM (Groq by default; Gemini or local Ollama also work).
@@ -9,7 +11,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 6/8 tasks |
+| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 7/8 tasks |
 | 2 | Schema, RLS, auth, RBAC | ⏳ |
 | 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
 | 4 | LLM, citations, conversations, audit | ⏳ |
