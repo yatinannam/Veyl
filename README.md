@@ -9,7 +9,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 2/8 tasks |
+| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 3/8 tasks |
 | 2 | Schema, RLS, auth, RBAC | ⏳ |
 | 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
 | 4 | LLM, citations, conversations, audit | ⏳ |
@@ -26,6 +26,10 @@ uv sync                                   # install deps into backend/.venv
 uv run pytest                             # tests (integration tests need Docker running)
 uv run ruff check . && uv run mypy        # lint + strict type check
 ```
+
+Integration tests start a throwaway `pgvector/pgvector:pg16` container via [testcontainers](https://testcontainers.com/), bootstrapped by the **same** init script Docker Compose uses ([`docker/postgres/init/01-roles.sh`](docker/postgres/init/01-roles.sh)), then run Alembic migrations as the owner role.
+
+**Database roles (least privilege):** `veyl_owner` owns the schema and runs migrations only; `veyl_app` (used by the API) is not a superuser, cannot bypass row-level security, and cannot create tables — all verified by tests.
 
 The API is a FastAPI app factory (`app.main:create_app`). Configuration comes only from environment variables (see [`.env.example`](.env.example)); it refuses to start without `DATABASE_URL`.
 

@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0, Task 3: least-privilege Postgres + test DB
+
+**Done** — `docker/postgres/init/01-roles.sh` creates `veyl_owner` (owns `public`, migrations) and `veyl_app` (NOSUPERUSER NOBYPASSRLS NOINHERIT, USAGE only), installs `vector` + `citext`, locks down PUBLIC. Alembic wired to the owner URL (`MIGRATIONS_DATABASE_URL`), no revisions yet. Session-scoped testcontainers fixture mounts the same init script and waits by logging in as `veyl_app` over TCP. Tests: app role has no elevated privileges / can't CREATE TABLE, owner can't bypass RLS, extensions installed, init scripts are LF. 11 tests green.
+**Note** — testcontainers 4.15 moved Postgres to `testcontainers.community.postgres`.
+**Next** — fail-closed `/readyz` (Task 4).
+
 ## 2026-10-15 — Phase 0, Task 2: backend skeleton
 
 **Done** — uv project (`backend/`), `Settings` via pydantic-settings (env-only; fails without `DATABASE_URL`, rejects unknown `ENVIRONMENT`), `create_app()` factory with lazy SQLAlchemy engine, `/api/v1/healthz`, OpenAPI at `/api/v1/docs`. ruff + mypy strict clean; 5 unit tests.
