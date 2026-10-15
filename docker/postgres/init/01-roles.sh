@@ -23,13 +23,18 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS citext;
 
 REVOKE ALL ON DATABASE :"dbname" FROM PUBLIC;
-GRANT CONNECT, TEMPORARY ON DATABASE :"dbname" TO veyl_owner, veyl_app;
+GRANT CONNECT, TEMPORARY ON DATABASE :"dbname" TO veyl_owner;
+-- No TEMPORARY for the app role: temp tables in pg_temp can shadow real tables
+-- inside SECURITY DEFINER functions.
+GRANT CONNECT ON DATABASE :"dbname" TO veyl_app;
 
 ALTER SCHEMA public OWNER TO veyl_owner;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO veyl_app;
 
 -- Functions created by migrations are not executable by default; grant explicitly.
-ALTER DEFAULT PRIVILEGES FOR ROLE veyl_owner IN SCHEMA public
+-- Must be global (no IN SCHEMA): a per-schema REVOKE cannot remove the built-in
+-- PUBLIC EXECUTE default.
+ALTER DEFAULT PRIVILEGES FOR ROLE veyl_owner
   REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 SQL

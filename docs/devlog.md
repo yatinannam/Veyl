@@ -2,6 +2,27 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0 review: fixes and deferred items
+
+**Review** — independent whole-phase review: no Critical, 2 Important, 10 Minor.
+**Fixed (Important)**
+- Default-privilege REVOKE of function EXECUTE was scoped `IN SCHEMA public`, which cannot remove PostgreSQL's built-in PUBLIC EXECUTE — owner functions (future SECURITY DEFINER helpers) were callable by `veyl_app`. Now global. Test `test_app_role_cannot_execute_owner_functions_by_default` RED→GREEN.
+- `veyl_app` had `TEMPORARY` on the database (pg_temp shadowing risk for definer functions). Now `CONNECT` only. Test `test_app_role_cannot_create_temp_tables` RED→GREEN. Spec §5.1 now requires `search_path = public, pg_temp` on every definer function.
+
+**Deferred (Minor) — to pick up in later phases**
+1. `/readyz` has no `statement_timeout`; a DB that accepts then stalls could hang it (compose healthcheck timeout bounds it).
+2. `LOG_LEVEL` is configured but not applied.
+3. `database_url` (contains password) should be `SecretStr` before secrets like `LLM_API_KEY` arrive (Phase 2/4).
+4. Add `.env*` to both `.dockerignore` files.
+5. Compose hardening: `cap_drop: [ALL]`, `no-new-privileges`, `read_only`.
+6. Revoke PUBLIC CONNECT on the `postgres` maintenance DB.
+7. Pin CI actions by SHA; add `timeout-minutes`.
+8. Automate the "api has no owner credentials" check in compose-smoke.
+9. (done) README note: changing DB passwords needs `docker compose down -v`.
+10. Spec §12 lists prettier, pytest-cov, hypothesis — not yet added (hypothesis lands with the authz equivalence test in Phase 2).
+
+**Phase 2 notes from review** — uvicorn `--forwarded-allow-ips` for per-IP rate limiting behind the Next proxy; explicit per-table GRANTs to `veyl_app` (fail-closed) with tests; disable OpenAPI docs when `ENVIRONMENT=production`; verify provenance of the `cn` npm package pulled in by shadcn.
+
 ## 2026-10-15 — Phase 0 complete: repo setup
 
 **Summary** — monorepo in place: `backend/` (FastAPI factory, env-only settings, fail-closed `/readyz`, Alembic on the owner role, 13 tests incl. real-Postgres role checks), `frontend/` (Next.js 16 + Tailwind + shadcn + Vitest, `/api` proxy), `docker/postgres/init` least-privilege bootstrap shared by Compose and tests, `docker-compose.yml` (db → migrate → api → web, non-root, localhost-only ports), GitHub Actions CI green on all three jobs. Decisions D-012 (worker deferred to Phase 3) and D-013 (Next 16 defaults + typegen) recorded.

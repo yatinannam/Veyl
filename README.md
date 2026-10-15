@@ -49,7 +49,9 @@ uv run ruff check . && uv run mypy        # lint + strict type check
 
 Integration tests start a throwaway `pgvector/pgvector:pg16` container via [testcontainers](https://testcontainers.com/), bootstrapped by the **same** init script Docker Compose uses ([`docker/postgres/init/01-roles.sh`](docker/postgres/init/01-roles.sh)), then run Alembic migrations as the owner role.
 
-**Database roles (least privilege):** `veyl_owner` owns the schema and runs migrations only; `veyl_app` (used by the API) is not a superuser, cannot bypass row-level security, and cannot create tables — all verified by tests.
+**Database roles (least privilege):** `veyl_owner` owns the schema and runs migrations only; `veyl_app` (used by the API) is not a superuser, cannot bypass row-level security, cannot create tables or temp tables, and cannot execute owner-created functions unless explicitly granted — all verified by tests.
+
+> The init script runs only when the database volume is first created. If you change DB passwords in `.env` later, recreate the volume: `docker compose down -v`.
 
 The API is a FastAPI app factory (`app.main:create_app`). Configuration comes only from environment variables (see [`.env.example`](.env.example)); it refuses to start without `DATABASE_URL`.
 

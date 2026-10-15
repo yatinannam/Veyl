@@ -175,7 +175,8 @@ A property-based test (Hypothesis) generates random contexts and ACLs and assert
 
 ### 5.1 Database roles
 - `veyl_owner` — owns schema, runs migrations, owns `SECURITY DEFINER` functions. Used only by the one-shot `migrate` service; the api and worker never receive its credentials.
-- `veyl_app` — used by api and worker. `NOSUPERUSER NOBYPASSRLS`, not table owner. All tenant tables have `ENABLE` **and** `FORCE ROW LEVEL SECURITY`.
+- `veyl_app` — used by api and worker. `NOSUPERUSER NOBYPASSRLS`, not table owner, `CONNECT` only on the database (no `TEMPORARY`, so it cannot create `pg_temp` objects that shadow tables inside definer functions). All tenant tables have `ENABLE` **and** `FORCE ROW LEVEL SECURITY`.
+- Functions created by `veyl_owner` are **not** executable by `PUBLIC` by default (global default-privilege revoke); each entry point gets an explicit `GRANT EXECUTE … TO veyl_app`. Every `SECURITY DEFINER` function sets `search_path = public, pg_temp`.
 
 RLS policy on every tenant-scoped table:
 ```sql
