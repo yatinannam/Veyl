@@ -2,6 +2,19 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0 plan written
+
+**Done**
+- Spec approved by user.
+- Wrote [Phase 0 repo-setup plan](superpowers/plans/2026-10-15-phase-0-repo-setup.md): 8 tasks — hygiene, backend skeleton, least-privilege Postgres bootstrap + testcontainers, fail-closed readiness, Compose, frontend skeleton, CI, close-out.
+- New working rule: every commit also updates the root README.
+
+**Blocked**
+- Docker Desktop not running locally — needed for integration tests and Compose.
+
+**Next**
+- User reviews plan and picks execution method; then execute Task 1.
+
 ## 2026-10-15 — Phase 1: requirements & design
 
 **Done**
