@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0, Task 2: backend skeleton
+
+**Done** — uv project (`backend/`), `Settings` via pydantic-settings (env-only; fails without `DATABASE_URL`, rejects unknown `ENVIRONMENT`), `create_app()` factory with lazy SQLAlchemy engine, `/api/v1/healthz`, OpenAPI at `/api/v1/docs`. ruff + mypy strict clean; 5 unit tests.
+**Note** — swapped dev dep `httpx` → `httpx2`: Starlette's TestClient now warns on httpx.
+**Next** — Postgres bootstrap + testcontainers fixture (Task 3; needs Docker Desktop running).
+
 ## 2026-10-15 — Phase 0, Task 1: repo hygiene
 
 **Done** — `.gitattributes` forcing LF (repo lives on Windows with `core.autocrlf=true`; CRLF would break the Postgres init script), `.gitignore` (incl. `.env` and the `.superpowers/` plan-execution scratch dir), `.editorconfig`, `.env.example` with dev placeholders only.
