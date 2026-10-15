@@ -9,12 +9,29 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 4/8 tasks |
+| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 5/8 tasks |
 | 2 | Schema, RLS, auth, RBAC | ⏳ |
 | 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
 | 4 | LLM, citations, conversations, audit | ⏳ |
 | 5 | Dashboard | ⏳ |
 | 6 | Security test suite, demo, docs | ⏳ |
+
+## Quickstart
+
+Requires Docker Desktop (or Docker Engine + Compose v2).
+
+```bash
+cp .env.example .env        # then change the passwords (letters/digits/hyphens)
+docker compose up --build
+```
+
+| Service | What it does | URL |
+|---|---|---|
+| `db` | Postgres 16 + pgvector; bootstraps least-privilege roles on first start | `127.0.0.1:5432` |
+| `migrate` | One-shot: runs Alembic migrations as `veyl_owner`, then exits | — |
+| `api` | FastAPI, connects as `veyl_app` (no superuser, no RLS bypass), runs as non-root | http://127.0.0.1:8000/api/v1/docs |
+
+All ports bind to `127.0.0.1` only. Reset everything (including the database volume) with `docker compose down -v`.
 
 ## Development
 

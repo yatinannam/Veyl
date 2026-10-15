@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-15 — Phase 0, Task 5: Docker Compose (db, migrate, api)
+
+**Done** — `backend/Dockerfile` (python:3.11-slim, uv-synced venv, non-root uid 10001), `docker-compose.yml`: `db` (pgvector:pg16, init script mounted, TCP healthcheck), one-shot `migrate` (only service with owner creds), `api` (app role, healthcheck on `/readyz`). Verified manually: db healthy → migrate exit 0 → api healthy; `/readyz` 200; api runs as 10001; api env has no owner creds; stopping db → `/readyz` 503.
+**Next** — frontend skeleton (Task 6).
+
 ## 2026-10-15 — Phase 0, Task 4: fail-closed readiness
 
 **Done** — `GET /api/v1/readyz` runs `SELECT 1` as `veyl_app`; any SQLAlchemy error → 503 `{"status":"unavailable"}` (3s connect timeout keeps it fast). Tests cover reachable (200) and unreachable (503, <10s). 13 tests green.
