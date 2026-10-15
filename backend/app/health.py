@@ -1,4 +1,10 @@
-from fastapi import APIRouter
+import logging
+
+from fastapi import APIRouter, Request, Response, status
+from sqlalchemy import Engine, text
+from sqlalchemy.exc import SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
@@ -7,3 +13,17 @@ router = APIRouter(tags=["health"])
 def healthz() -> dict[str, str]:
     """Liveness: the process is up. Does not touch dependencies."""
     return {"status": "ok"}
+
+
+@router.get("/readyz")
+def readyz(request: Request, response: Response) -> dict[str, str]:
+    """Readiness: dependencies are reachable. Fails closed with 503."""
+    engine: Engine = request.app.state.engine
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        logger.warning("readiness check failed: database unreachable")
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "unavailable"}
+    return {"status": "ready"}

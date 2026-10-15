@@ -9,7 +9,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 3/8 tasks |
+| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | 🚧 in progress — 4/8 tasks |
 | 2 | Schema, RLS, auth, RBAC | ⏳ |
 | 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
 | 4 | LLM, citations, conversations, audit | ⏳ |
@@ -36,6 +36,7 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/v1/healthz` | Liveness — process is up |
+| `GET /api/v1/readyz` | Readiness — DB reachable as the app role; **503 if not** (fails closed) |
 | `GET /api/v1/docs` | OpenAPI UI |
 
 ## Documentation
