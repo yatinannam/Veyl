@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3 plan written
+
+**Done** — [Phase 3 plan](superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md), 8 tasks: migration 0003 (documents, chunks with `vector(384)` and denormalised ACL, ingestion jobs, retrieval cache, job-claim function); SQL read filters proven equal to the Python policy over an exhaustive ACL universe; local bge-small embeddings, PDF/TXT/MD extraction, chunker; server-keyed storage, upload validation, streamed body limit; documents API; ingestion worker with a race-safe ACL copy; permission-filtered retrieval with an ids-only cache and a Python re-check; containers, end-to-end ingestion smoke in CI, docs.
+**Folded in from the Phase 2 review** — membership lock becomes `FOR NO KEY UPDATE`; retrieval reads `policy_version` in the same transaction as the search; pgvector iterative scans for small-tenant recall.
+**Next** — execute Task 1.
+
 ## 2026-10-16 — Phase 2 review: fixes and deferred items
 
 **Review** — independent whole-phase review: no Critical, 2 Important, 8 Minor. Data isolation and authorization model judged sound.
