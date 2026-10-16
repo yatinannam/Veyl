@@ -25,10 +25,12 @@ def test_resolve_citations_keeps_only_supplied_labels() -> None:
     assert "[S1]" in resolved.text
 
 
-def test_resolve_citations_deduplicates_and_keeps_order() -> None:
+def test_resolve_citations_deduplicates_and_renumbers_by_first_appearance() -> None:
     sources = _sources(3)
     resolved = resolve_citations("A [S2]. B [S1]. C [S2][s1].", sources)
-    assert [s.label for s in resolved.cited] == ["S2", "S1"]
+    assert [s.label for s in resolved.cited] == ["S1", "S2"]
+    assert [s.chunk for s in resolved.cited] == [sources[1].chunk, sources[0].chunk]
+    assert resolved.text == "A [S1]. B [S2]. C [S1][S2]."
 
 
 def test_resolve_citations_without_markers_cites_nothing() -> None:

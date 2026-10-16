@@ -2,6 +2,25 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4 review: fixes and deferred items
+
+**Review** — independent whole-phase review: no Critical, 3 Important, 8 Minor. No path found that sends unauthorized content to the model or the user for cited content.
+
+**Fixed (Important)**
+- *Answers built from a revoked source survived if the model did not cite it.* Assistant messages now store every chunk given to the model (`source_chunk_ids`, migration 0006); views and history require all of them to be readable (D-040). Test RED to GREEN.
+- *The LLM client forwarded the API key across redirects.* urllib follows a 302 with the `Authorization` header; the reviewer saw the key arrive at a second server. Redirects are now refused (D-041). Test RED to GREEN (the second server receives nothing).
+- *Stored answers lost which `[S#]` meant which chunk.* Labels are renumbered in order of first appearance and conversation views return the same citation list as `/query` (D-042). Test RED to GREEN.
+
+**Deferred (Minor)**
+1. Deeply nested provider JSON raises `RecursionError` (500, not audited); treat any non-app exception from the LLM as `llm_unavailable`.
+2. Delimiter neutralisation misses zero-width, fullwidth, and entity-encoded lookalikes (impact limited to mis-attribution among readable sources); add NFKC and zero-width stripping.
+3. Old `[S#]` markers in replayed history can be repeated by the model and resolve to new sources; strip them from history.
+4. The `.env.example` `AUDIT_HMAC_KEY` placeholder passes validation; reject it when `ENVIRONMENT=production`.
+5. The LLM timeout is per socket operation, not a total deadline (a trickling provider can hold a worker).
+6. A conversation deleted mid-request causes a 500 after the model call; re-check ownership under a lock when storing.
+7. Test gaps: no assertion for `rag.query` with `result_count=0`; the end-to-end cache test would pass without a cache.
+8. `rag.denied` details omit the attempted conversation id.
+
 ## 2026-10-16 — Phase 4 complete: answers, citations, conversations, audit
 
 **Summary** — `POST /query` answers only from chunks the caller may read: re-authorized history, permission-filtered retrieval with a full Python re-check, the model skipped when nothing authorized is relevant, untrusted-source prompt framing, server-verified citations, and fail-closed errors. Conversations are owner-only and hide answers whose sources were revoked. The append-only audit log (trigger binds even the owner) records logins, user/document/tenant changes, ingestion, every question (ids, model, trace; question hashed by default), and every read of the log; admins query it with filters and keyset pagination. CI now runs a full question through the stack with a stdlib LLM stand-in (`docker-compose.stub.yml`).

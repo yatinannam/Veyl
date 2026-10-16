@@ -16,7 +16,7 @@ from app.conversations.service import history_for_prompt, owned_conversation
 from app.db.schema import conversations, messages, tenants
 from app.db.tenancy import tenant_transaction
 from app.errors import AppError, NotFound, ServiceUnavailable
-from app.llm.citations import resolve_citations
+from app.llm.citations import make_snippet, resolve_citations
 from app.llm.client import LLMClient, LLMError
 from app.llm.prompt import HistoryTurn, build_messages
 from app.retrieval.embeddings import Embedder
@@ -25,7 +25,6 @@ from app.retrieval.search import AuthorizationMismatch, RetrievedChunk, retrieve
 logger = logging.getLogger(__name__)
 
 NO_SOURCES_ANSWER = "I could not find anything about that in the documents you can access."
-SNIPPET_CHARS = 240
 
 
 class LLMUnavailable(AppError):
@@ -92,11 +91,6 @@ def _record_failure(
             trace_id=trace_id,
             details={"stage": stage},
         )
-
-
-def _snippet(text: str) -> str:
-    flat = " ".join(text.split())
-    return flat if len(flat) <= SNIPPET_CHARS else flat[: SNIPPET_CHARS - 3].rstrip() + "..."
 
 
 def answer_question(
@@ -191,7 +185,7 @@ def answer_question(
                 document_id=s.chunk.document_id,
                 document_title=s.chunk.document_title,
                 chunk_id=s.chunk.chunk_id,
-                snippet=_snippet(s.chunk.content),
+                snippet=make_snippet(s.chunk.content),
             )
             for s in resolved.cited
         ]
@@ -230,6 +224,9 @@ def answer_question(
                 role="assistant",
                 content=text,
                 cited_chunk_ids=[c.chunk_id for c in citations],
+                # Everything the model saw, cited or not: the answer is hidden once any of it
+                # becomes unreadable.
+                source_chunk_ids=[c.chunk_id for c in chunks],
                 cited_document_ids=list(dict.fromkeys(c.document_id for c in citations)),
                 trace_id=trace_id,
                 created_at=func.clock_timestamp(),

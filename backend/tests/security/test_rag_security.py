@@ -311,3 +311,31 @@ def test_forged_tenant_in_query_is_rejected(world: World, database_urls: Databas
             f"{API}/query", json={"question": "hi", "tenant_id": str(uuid4())}, headers=csrf(client)
         )
     assert r.status_code == 422
+
+
+def test_uncited_answers_are_also_hidden_after_revocation(
+    world: World, app_engine: Engine, database_urls: DatabaseUrls
+) -> None:
+    # The model may use a source without citing it; the answer must still be hidden once
+    # any source it was given becomes unreadable.
+    llm = RecordingLLM("The handbook code is CANARY-UNCITED-77.")
+    with client_for(database_urls.app, embedder=EMBEDDER, llm=llm) as client:
+        login(client, world.slug, world.member_email)
+        first = _ask(client, "Who handles quarterly revenue questions?").json()  # type: ignore[attr-defined]
+        assert first["citations"] == []
+        admin = AuthContext(
+            user_id=world.admin_id, tenant_id=world.tenant_id, role=Role.ADMIN, session_id=uuid4()
+        )
+        documents_service.update_permissions(
+            app_engine,
+            admin,
+            world.handbook,
+            classification=Classification.INTERNAL,
+            allowed_roles=[Role.ADMIN],
+            allowed_user_ids=[],
+        )
+        llm.reply = "Follow-up."
+        _ask(client, "And who approves it?", first["conversation_id"])
+        view = client.get(f"{API}/conversations/{first['conversation_id']}").json()
+    assert "CANARY-UNCITED-77" not in "\n".join(m.content for m in llm.calls[1])
+    assert "CANARY-UNCITED-77" not in view["messages"][1]["content"]

@@ -16,6 +16,17 @@ class LLMError(Exception):
     """The provider failed; callers fail closed."""
 
 
+class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    """urllib would follow a redirect and carry the Authorization header (the API key) to
+    the new host. Any 3xx from the provider is treated as an error instead."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        raise urllib.error.HTTPError(req.full_url, code, "redirect refused", headers, fp)
+
+
+_OPENER = urllib.request.build_opener(_RefuseRedirects)
+
+
 @dataclass(frozen=True, slots=True)
 class ChatMessage:
     role: str
@@ -75,7 +86,7 @@ class OpenAICompatibleLLM:
             self.endpoint, data=body, headers=headers, method="POST"
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310
+            with _OPENER.open(request, timeout=self.timeout_seconds) as response:
                 payload = json.loads(response.read(MAX_RESPONSE_BYTES))
         except urllib.error.HTTPError as exc:
             raise LLMError(f"provider returned HTTP {exc.code}") from exc

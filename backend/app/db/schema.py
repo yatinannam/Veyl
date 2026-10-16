@@ -228,6 +228,12 @@ messages = Table(
         server_default=text("'{}'"),
     ),
     Column("trace_id", UUID(as_uuid=True), nullable=False),
+    Column(
+        "source_chunk_ids",
+        ARRAY(UUID(as_uuid=True)),
+        nullable=False,
+        server_default=text("'{}'"),
+    ),
     _created_at(),
     ForeignKeyConstraint(
         ["tenant_id", "conversation_id"],

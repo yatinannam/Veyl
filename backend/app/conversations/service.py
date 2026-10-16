@@ -13,6 +13,7 @@ from app.authz import AuthContext
 from app.db.schema import conversations, messages
 from app.db.tenancy import tenant_transaction
 from app.errors import NotFound
+from app.llm.citations import make_snippet
 from app.llm.prompt import HistoryTurn
 from app.retrieval.search import fetch_readable_chunks
 
@@ -28,11 +29,21 @@ class ConversationSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class StoredCitation:
+    label: str
+    document_id: UUID
+    document_title: str
+    chunk_id: UUID
+    snippet: str
+
+
+@dataclass(frozen=True, slots=True)
 class StoredMessage:
     id: UUID
     role: str
     content: str
     cited_document_ids: list[UUID]
+    citations: list[StoredCitation]
     trace_id: UUID
     created_at: datetime
 
@@ -56,17 +67,34 @@ def owned_conversation(conn: Connection, ctx: AuthContext, conversation_id: UUID
 
 
 def _visible(conn: Connection, ctx: AuthContext, rows: list[Any]) -> list[StoredMessage]:
-    cited = [chunk for row in rows for chunk in row.cited_chunk_ids]
-    readable = {c.chunk_id for c in fetch_readable_chunks(conn, ctx, cited)}
+    """An answer stays visible only while every chunk it was built from (cited or not) is
+    still readable. Citation labels map S1..Sm to the stored cited chunks in order."""
+    needed = [c for row in rows for c in (*row.source_chunk_ids, *row.cited_chunk_ids)]
+    readable = {c.chunk_id: c for c in fetch_readable_chunks(conn, ctx, needed)}
     visible: list[StoredMessage] = []
     for row in rows:
-        allowed = set(row.cited_chunk_ids) <= readable
+        allowed = {*row.source_chunk_ids, *row.cited_chunk_ids} <= readable.keys()
+        citations = (
+            [
+                StoredCitation(
+                    label=f"S{index + 1}",
+                    document_id=readable[chunk_id].document_id,
+                    document_title=readable[chunk_id].document_title,
+                    chunk_id=chunk_id,
+                    snippet=make_snippet(readable[chunk_id].content),
+                )
+                for index, chunk_id in enumerate(row.cited_chunk_ids)
+            ]
+            if allowed
+            else []
+        )
         visible.append(
             StoredMessage(
                 id=row.id,
                 role=row.role,
                 content=row.content if allowed else HIDDEN_ANSWER,
                 cited_document_ids=list(row.cited_document_ids) if allowed else [],
+                citations=citations if allowed else [],
                 trace_id=row.trace_id,
                 created_at=row.created_at,
             )

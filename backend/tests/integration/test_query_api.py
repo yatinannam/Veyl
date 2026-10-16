@@ -122,3 +122,25 @@ def test_query_requires_csrf(owner_engine: Engine, database_urls: DatabaseUrls) 
     with client_for(database_urls.app) as client:
         login(client, t.slug, t.admin_email)
         assert client.post(f"{API}/query", json={"question": "hello"}).status_code == 403
+
+
+def test_stored_answers_keep_their_citation_labels(
+    owner_engine: Engine, database_urls: DatabaseUrls
+) -> None:
+    t = create_tenant_with_admin(owner_engine)
+    _doc(owner_engine, t.tenant_id, t.admin_id, "Employees may book economy flights.", "Flights")
+    _doc(
+        owner_engine, t.tenant_id, t.admin_id, "Employees may book standard hotel rooms.", "Hotels"
+    )
+    llm = RecordingLLM("Hotels are standard [S2]. Flights are economy [S1].")
+    with client_for(database_urls.app, embedder=EMBEDDER, llm=llm) as client:
+        login(client, t.slug, t.admin_email)
+        body = client.post(
+            f"{API}/query", json={"question": "What may employees book?"}, headers=csrf(client)
+        ).json()
+        stored = client.get(f"{API}/conversations/{body['conversation_id']}").json()["messages"][1]
+    # Labels are renumbered in order of first appearance so they can be stored and replayed.
+    assert body["answer"] == "Hotels are standard [S1]. Flights are economy [S2]."
+    assert [c["label"] for c in body["citations"]] == ["S1", "S2"]
+    assert stored["content"] == body["answer"]
+    assert stored["citations"] == body["citations"]

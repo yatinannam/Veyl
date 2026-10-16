@@ -17,13 +17,28 @@ class ConversationOut(BaseModel):
     updated_at: datetime
 
 
+class CitationOut(BaseModel):
+    label: str
+    document_id: UUID
+    document_title: str
+    chunk_id: UUID
+    snippet: str
+
+
 class MessageOut(BaseModel):
     id: UUID
     role: str
     content: str
     cited_document_ids: list[UUID]
+    citations: list[CitationOut]
     trace_id: UUID
     created_at: datetime
+
+
+def _message(stored: service.StoredMessage) -> MessageOut:
+    fields = vars_of(stored)
+    fields["citations"] = [CitationOut(**vars_of(c)) for c in stored.citations]
+    return MessageOut(**fields)
 
 
 class ConversationDetail(ConversationOut):
@@ -40,9 +55,7 @@ def get_conversation(
     conversation_id: UUID, ctx: CurrentUser, engine: EngineDep
 ) -> ConversationDetail:
     summary, stored = service.get_conversation(engine, ctx, conversation_id)
-    return ConversationDetail(
-        **vars_of(summary), messages=[MessageOut(**vars_of(m)) for m in stored]
-    )
+    return ConversationDetail(**vars_of(summary), messages=[_message(m) for m in stored])
 
 
 @router.delete("/{conversation_id}", status_code=204, dependencies=[Depends(require_csrf)])
