@@ -12,7 +12,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (6/8 tasks) |
+| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (7/8 tasks) |
 | 3 | Ingestion, embeddings, filtered retrieval | Planned |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
@@ -71,6 +71,11 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | `POST /api/v1/auth/login` | `{tenant_slug, email, password}` → sets session + CSRF cookies, returns identity |
 | `POST /api/v1/auth/logout` | Revokes the session (needs `X-CSRF-Token`) |
 | `GET /api/v1/auth/me` | Current user, tenant, and permission hints |
+| `GET /api/v1/tenant` | Current tenant |
+| `PATCH /api/v1/tenant` | Rename tenant (admin) |
+| `GET /api/v1/users` | List users in your tenant (admin) |
+| `POST /api/v1/users` | Create a user `{email, password, role}` (admin) |
+| `PATCH /api/v1/users/{id}` | Change role and/or active status (admin; not yourself) |
 
 **Errors** share one envelope, `{"error": {"code", "message", "trace_id"}}`, and every response carries an `X-Trace-Id` header. Validation errors never echo submitted values; a database outage returns `503 service_unavailable` (fail closed). The database URL is a secret value and never appears in logs or reprs.
 
@@ -103,6 +108,8 @@ A document chunk is readable only if it belongs to the caller's tenant, its clas
 **Tenant isolation in the database:** every table has row-level security enabled *and forced*. The API's `veyl_app` role only sees rows whose `tenant_id` matches the transaction-local setting `app.tenant_id`, which the API sets from the server-side session; with no setting it sees nothing. Writes into another tenant are rejected by the policy's `WITH CHECK`. The owner role (migrations and two narrow lookup functions) has its own explicit policy. `veyl_app` gets column-level grants only: it cannot create tenants, delete users, or rewrite a user's tenant, email, or password hash. A test fails if any future table lacks forced RLS.
 
 **Sessions:** login sets `veyl_session` (opaque token, HttpOnly, SameSite=Lax, Secure in production) and `veyl_csrf` (readable by the frontend). Every state-changing request must echo the CSRF cookie in an `X-CSRF-Token` header. Each request re-resolves the session in the database, so revocation, deactivation, and role changes take effect immediately. Login failures return one generic error whatever the cause; repeated failures lock the account temporarily.
+
+**User management guards:** admins cannot change their own role or status, a tenant always keeps at least one active admin (enforced under a row lock, so concurrent demotions cannot race past it), deactivating a user revokes their sessions, and every role or status change bumps the tenant's `policy_version` (used later to invalidate cached retrieval results). Identifiers from another tenant return 404.
 
 **Credentials:** passwords are hashed with argon2id (minimum 12 characters); unknown accounts still pay the hashing cost so timing does not reveal which accounts exist. Session tokens are random 256-bit values stored only as SHA-256 digests. Failed logins are rate-limited per account and, more loosely, per client IP.
 

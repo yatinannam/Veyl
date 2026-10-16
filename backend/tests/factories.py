@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import cache
 from uuid import UUID
@@ -74,3 +75,17 @@ def create_session(
             )
         )
     return token
+
+
+@dataclass(frozen=True)
+class SeededTenant:
+    tenant_id: UUID
+    slug: str
+    admin_id: UUID
+    admin_email: str
+
+
+def create_tenant_with_admin(owner_engine: Engine, *, name: str = "Test Tenant") -> SeededTenant:
+    tenant_id, slug = create_tenant(owner_engine, name=name)
+    admin_id, admin_email = create_user(owner_engine, tenant_id, role=Role.ADMIN)
+    return SeededTenant(tenant_id, slug, admin_id, admin_email)

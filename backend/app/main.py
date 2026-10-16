@@ -10,6 +10,8 @@ from app.auth.ratelimit import LoginLimiters
 from app.config import Settings
 from app.db.engine import create_db_engine
 from app.errors import register_error_handlers
+from app.tenants import router as tenants_router
+from app.users import router as users_router
 
 API_PREFIX = "/api/v1"
 
@@ -53,4 +55,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix=API_PREFIX)
     app.include_router(auth_router.router, prefix=API_PREFIX)
+    app.include_router(tenants_router.router, prefix=API_PREFIX)
+    app.include_router(users_router.router, prefix=API_PREFIX)
     return app

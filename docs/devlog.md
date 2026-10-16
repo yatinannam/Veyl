@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 7: tenant and user management
+
+**Done** — `/tenant` (GET, PATCH name) and `/users` (GET, POST, PATCH role/is_active), admin-only via `authorize`, CSRF on writes, `extra=forbid` bodies. Guards: no self role/status change; at least one active admin kept under a tenant row lock (mutation check: removing the lock makes the concurrency test fail 3/3); `policy_version` bump on every change; deactivation revokes sessions; cross-tenant ids 404. Security tests: non-admins blocked (T10), demotion effective next request, forged tenant ids in body/header/query ignored or rejected (T4), cross-tenant modification 404 (T1). 138 tests green.
+**Next** — Compose proxy headers, end-to-end login smoke in CI, docs close-out, final review (Task 8).
+
 ## 2026-10-16 — Phase 2, Task 6: authentication API
 
 **Done** — `app/auth/service.py` (login with normalised slug/email, dummy-hash timing equaliser, per-account + per-IP lockout, session expiry from the DB clock; session resolution via `auth_resolve_session`; logout revokes), `app/auth/deps.py` (`CurrentUser` from the cookie only; CSRF double-submit compared as bytes so non-ASCII headers give 403, not 500), `app/auth/router.py` (`/auth/login`, `/auth/logout`, `/auth/me`). Security tests: cookie flags (Secure in production), token stored only as SHA-256, indistinguishable login failures, CSRF required, lockout, oversized password rejected before hashing, no CORS, missing/garbage/expired/revoked sessions and deactivated users denied, DB outage gives 503. 121 tests green.
