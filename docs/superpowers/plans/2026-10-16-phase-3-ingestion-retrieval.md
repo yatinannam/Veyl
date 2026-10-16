@@ -1403,6 +1403,8 @@ def encrypt_pdf(data: bytes, password: str = "secret") -> bytes:
 ```
 
 ```python file=backend/tests/unit/test_chunker.py
+from itertools import pairwise
+
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -1429,7 +1431,7 @@ def test_long_text_is_split_with_bounded_chunk_size() -> None:
 def test_consecutive_chunks_overlap() -> None:
     text = "\n\n".join(f"Sentence number {i} talks about topic {i}." for i in range(40))
     chunks = chunk_text(text, target=TARGET, overlap=OVERLAP)
-    for previous, current in zip(chunks, chunks[1:], strict=False):
+    for previous, current in pairwise(chunks):
         assert previous.split()[-1] in current
 
 
@@ -1638,6 +1640,7 @@ start a new chunk so a section stays with its heading. Consecutive chunks overla
 `overlap` characters (cut at a word boundary)."""
 
 import re
+from itertools import pairwise
 
 TARGET_CHARS = 800
 OVERLAP_CHARS = 120
@@ -1701,7 +1704,7 @@ def chunk_text(text: str, target: int = TARGET_CHARS, overlap: int = OVERLAP_CHA
         return chunks
     return [chunks[0]] + [
         f"{_tail(previous, overlap)} {chunk}"
-        for previous, chunk in zip(chunks, chunks[1:], strict=False)
+        for previous, chunk in pairwise(chunks)
     ]
 ```
 

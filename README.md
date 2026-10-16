@@ -13,7 +13,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
-| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (2/8 tasks) |
+| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (3/8 tasks) |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
@@ -124,6 +124,16 @@ The same rule exists twice: as SQL predicates applied inside every document and 
 **Documents and chunks:** each document carries its access-control list (`classification`, `allowed_roles`, `allowed_user_ids`) and an `acl_version`. Every chunk stores a copy of that ACL next to its 384-dimensional embedding (pgvector, HNSW index), so permission filtering happens inside the vector query. Composite foreign keys make it impossible for a chunk, job, or cache row to point at another tenant's document or user, and unknown role names are rejected by a database check.
 
 **Credentials:** passwords are hashed with argon2id (minimum 12 characters); unknown accounts still pay the hashing cost so timing does not reveal which accounts exist. Session tokens are random 256-bit values stored only as SHA-256 digests. Failed logins are rate-limited per account and, more loosely, per client IP (the client IP comes from the `edge` proxy and cannot be forged; a smoke test proves it). At most four password checks run at once; excess attempts get 429 instead of tying up the server.
+
+## Ingestion
+
+Uploaded files are processed by a background worker:
+
+1. **Extract** text. PDFs via pypdf (encrypted PDFs and files over the page cap are rejected), TXT and Markdown as UTF-8 (NUL bytes rejected).
+2. **Chunk** it: paragraphs, then sentences, then hard cuts, about 800 characters with about 120 characters of overlap; a Markdown heading always starts a new chunk with its section.
+3. **Embed** each chunk locally with `BAAI/bge-small-en-v1.5` (384 dimensions, ONNX via fastembed). No API key, no network once the model is cached, $0.
+
+Tests use a deterministic fake embedder; one test runs the real model (skip it offline with `VEYL_SKIP_MODEL_TESTS=1`).
 
 ## Repository layout
 

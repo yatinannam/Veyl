@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 3: embeddings, extraction, chunking
+
+**Done** — `app/retrieval/embeddings.py` (`Embedder` protocol, `FastEmbedEmbedder` with dimension check), `app/ingestion/extract.py` (pypdf with encrypted/page-cap/garbage rejection; UTF-8 text with NUL rejection; `ExtractionError` messages safe for users), `app/ingestion/chunker.py` (paragraph/sentence/hard-cut splitter, heading-aware, word-boundary overlap; Hypothesis property: chunks non-empty, bounded, every word covered). `tests/fakes.py`: deterministic hashed embedder, hand-built PDFs, pypdf encryption. The real model test passed locally (related text scores higher). 168 tests green.
+**Next** — storage, upload validation, streamed body limit (Task 4).
+
 ## 2026-10-16 — Phase 3, Task 2: SQL read filters
 
 **Done** — `app/authz/sql.py`: `document_read_filter(ctx)` and `chunk_read_filter(ctx)` (all five conditions of the chunk rule, over `CHUNK_JOIN`). Exhaustive equivalence test against `can_read_chunk`: 27 callers x 256 ACLs, for chunks and documents; plus unready/deleted/stale-version documents hide their chunks. Mutation check: dropping the clearance condition from SQL fails the proof. Uses `any_()` (SQLAlchemy 2.1 deprecates `ARRAY.any()`). 152 tests green.

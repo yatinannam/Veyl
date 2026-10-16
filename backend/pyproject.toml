@@ -29,7 +29,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-markers = ["integration: needs Docker (testcontainers Postgres)"]
+markers = [
+    "integration: needs Docker (testcontainers Postgres)",
+    "model: downloads and runs the real embedding model",
+]
 
 [tool.ruff]
 line-length = 100
@@ -40,7 +43,7 @@ select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
 ignore = ["S101"]  # assert is fine in tests
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S105", "S106"]  # hardcoded test passwords
+"tests/**" = ["S105", "S106", "S107"]  # hardcoded test passwords
 
 [tool.mypy]
 python_version = "3.11"
