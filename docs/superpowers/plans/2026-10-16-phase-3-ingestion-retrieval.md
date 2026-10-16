@@ -1991,6 +1991,8 @@ def validate_upload(filename: str, data: bytes, *, max_bytes: int) -> ValidatedU
 ```
 
 ```python file=backend/app/documents/limits.py
+from contextlib import suppress
+
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -2040,10 +2042,8 @@ class BodySizeLimit:
                 started = True
             await send(message)
 
-        try:
+        with suppress(_BodyTooLarge):
             await self.app(scope, limited_receive, guarded_send)
-        except _BodyTooLarge:
-            pass
         if exceeded and not started:
             await self._reject(scope, receive, send)
 

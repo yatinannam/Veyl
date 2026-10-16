@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 4: storage and upload hardening
+
+**Done** — `LocalStorage` (keys must be server-generated `uuid/uuid`; atomic write), `validate_upload` (extension allowlist + content sniff, UTF-8/NUL checks, size, SHA-256, safe display basename), `BodySizeLimit` pure ASGI middleware (rejects by declared length or while streaming; replaces whatever the framework answers once the limit is crossed; mutation check: removing the byte count fails the chunked-upload test). 191 tests green.
+**Next** — documents API (Task 5).
+
 ## 2026-10-16 — Phase 3, Task 3: embeddings, extraction, chunking
 
 **Done** — `app/retrieval/embeddings.py` (`Embedder` protocol, `FastEmbedEmbedder` with dimension check), `app/ingestion/extract.py` (pypdf with encrypted/page-cap/garbage rejection; UTF-8 text with NUL rejection; `ExtractionError` messages safe for users), `app/ingestion/chunker.py` (paragraph/sentence/hard-cut splitter, heading-aware, word-boundary overlap; Hypothesis property: chunks non-empty, bounded, every word covered). `tests/fakes.py`: deterministic hashed embedder, hand-built PDFs, pypdf encryption. The real model test passed locally (related text scores higher). 168 tests green.
