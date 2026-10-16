@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 4: schema and row-level security
+
+**Done** — migration 0001: `user_role` enum, `app_current_tenant()` (NULLIF guard), `tenants`/`users`/`sessions` with CHECK constraints and composite FK pinning sessions to same-tenant users; ENABLE + FORCE RLS with `*_tenant_isolation` (veyl_app) and `*_owner_all` (veyl_owner) policies; column-level grants. `app/db/schema.py` (Core tables), `app/db/tenancy.py` (`tenant_transaction`, UUID-only). Tests: schema matches migration, every table has forced RLS, no-context sees nothing, own-tenant only, cross-tenant insert refused, context does not leak across pooled transactions, malformed setting fails closed, privilege limits. 84 tests green.
+**Next** — definer lookup functions and operator provisioning (Task 5).
+
 ## 2026-10-16 — Phase 2, Task 3: security primitives
 
 **Done** — `app/auth/passwords.py` (argon2id, dummy verify for unknown users, 12..1024 char bounds), `app/auth/tokens.py` (256-bit URL-safe tokens, SHA-256 digests), `app/auth/ratelimit.py` (sliding-window limiter; per-account and 4x looser per-IP). Extra fix beyond the plan: the limiter no longer retains a key for every probe (unbounded memory under account enumeration). 70 tests green.

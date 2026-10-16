@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
 from testcontainers.community.postgres import PostgresContainer
 
@@ -73,3 +73,17 @@ def database_urls() -> Iterator[DatabaseUrls]:
         _wait_for_login(urls.app)
         _migrate(urls.owner)
         yield urls
+
+
+@pytest.fixture(scope="session")
+def owner_engine(database_urls: DatabaseUrls) -> Iterator[Engine]:
+    engine = create_engine(database_urls.owner)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def app_engine(database_urls: DatabaseUrls) -> Iterator[Engine]:
+    engine = create_engine(database_urls.app)
+    yield engine
+    engine.dispose()

@@ -12,7 +12,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (3/8 tasks) |
+| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (4/8 tasks) |
 | 3 | Ingestion, embeddings, filtered retrieval | Planned |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
@@ -88,6 +88,8 @@ All permission decisions live in one package, [`backend/app/authz`](backend/app/
 Classifications, lowest to highest: `public`, `internal`, `confidential`, `restricted`.
 
 A document chunk is readable only if it belongs to the caller's tenant, its classification is within the caller's clearance, **and** the caller is an admin, has a role in the chunk's `allowed_roles`, or is listed in its `allowed_user_ids`. An explicit per-user grant never lifts the clearance ceiling. Property-based tests (Hypothesis) check these invariants over random inputs.
+
+**Tenant isolation in the database:** every table has row-level security enabled *and forced*. The API's `veyl_app` role only sees rows whose `tenant_id` matches the transaction-local setting `app.tenant_id`, which the API sets from the server-side session; with no setting it sees nothing. Writes into another tenant are rejected by the policy's `WITH CHECK`. The owner role (migrations and two narrow lookup functions) has its own explicit policy. `veyl_app` gets column-level grants only: it cannot create tenants, delete users, or rewrite a user's tenant, email, or password hash. A test fails if any future table lacks forced RLS.
 
 **Credentials:** passwords are hashed with argon2id (minimum 12 characters); unknown accounts still pay the hashing cost so timing does not reveal which accounts exist. Session tokens are random 256-bit values stored only as SHA-256 digests. Failed logins are rate-limited per account and, more loosely, per client IP.
 
