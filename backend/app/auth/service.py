@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine, func, insert, select, text, update
 
+from app.audit import service as audit
 from app.auth.passwords import verify_password
 from app.auth.ratelimit import LoginLimiters
 from app.auth.tokens import hash_token, new_csrf_token, new_session_token
@@ -85,6 +86,17 @@ def login(
     if row is None or not row.is_active or not password_ok:
         limiters.account.record_failure(account_key)
         limiters.ip.record_failure(ip_key)
+        if row is not None:
+            # The account exists, so the tenant is known and the attempt is auditable.
+            with tenant_transaction(engine, row.tenant_id) as conn:
+                audit.record(
+                    conn,
+                    tenant_id=row.tenant_id,
+                    event_type="auth.login_failed",
+                    actor_user_id=row.user_id,
+                    decision="deny",
+                    details={"reason": "inactive" if not row.is_active else "bad_password"},
+                )
         raise InvalidCredentials()
     limiters.account.reset(account_key)
 
@@ -100,6 +112,12 @@ def login(
             )
         )
         identity = _load_identity(conn, row.user_id)
+        audit.record(
+            conn,
+            tenant_id=row.tenant_id,
+            event_type="auth.login_succeeded",
+            actor_user_id=row.user_id,
+        )
     return LoginResult(session_token=token, csrf_token=new_csrf_token(), identity=identity)
 
 

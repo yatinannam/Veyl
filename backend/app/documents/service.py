@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection, Engine, delete, func, insert, select, update
 
+from app.audit import service as audit
 from app.authz import Action, AuthContext, Classification, DocumentRef, Role, authorize, is_allowed
 from app.authz.sql import document_read_filter
 from app.db.schema import document_chunks, documents, ingestion_jobs, users
@@ -143,6 +144,13 @@ def upload_document(
             conn.execute(
                 insert(ingestion_jobs).values(tenant_id=ctx.tenant_id, document_id=document_id)
             )
+            audit.record(
+                conn,
+                tenant_id=ctx.tenant_id,
+                event_type="document.uploaded",
+                actor_user_id=ctx.user_id,
+                details={"document_id": str(document_id), "classification": classification.value},
+            )
     except BaseException:
         storage.delete(key)
         raise
@@ -223,6 +231,19 @@ def update_permissions(
             )
         )
         bump_policy_version(conn, ctx.tenant_id)
+        audit.record(
+            conn,
+            tenant_id=ctx.tenant_id,
+            event_type="document.acl_changed",
+            actor_user_id=ctx.user_id,
+            details={
+                "document_id": str(document_id),
+                "classification": classification.value,
+                "allowed_roles": roles,
+                "allowed_user_count": len(user_ids),
+                "acl_version": row.acl_version,
+            },
+        )
     return _record(row)
 
 
@@ -243,4 +264,11 @@ def delete_document(
         )
         conn.execute(delete(document_chunks).where(document_chunks.c.document_id == document_id))
         bump_policy_version(conn, ctx.tenant_id)
+        audit.record(
+            conn,
+            tenant_id=ctx.tenant_id,
+            event_type="document.deleted",
+            actor_user_id=ctx.user_id,
+            details={"document_id": str(document_id)},
+        )
     storage.delete(current.storage_key)

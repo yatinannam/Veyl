@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 3: audit the existing flows
+
+**Done** — audit events in the same transaction as the action: `auth.login_succeeded`, `auth.login_failed` (deny; only when the account exists, so the tenant is known; addresses D-019), `user.created`/`role_changed`/`activated`/`deactivated`, `document.uploaded`/`acl_changed`/`deleted`, `document.ingested`, `document.ingest_failed` (error), `tenant.updated`. `/tenant` exposes and (admin) updates `audit_query_mode`. A test plants a canary string in a document and proves no audit row contains it. 258 tests green.
+**Next** — LLM client (Task 4).
+
 ## 2026-10-16 — Phase 4, Task 2: audit service and API
 
 **Done** — `app/audit/service.py`: fixed event-type allowlist, `record()` (ids and decisions only), keyed and normalised `query_reference` (HMAC-SHA256), `list_events` with user/document/type/time filters and keyset pagination (opaque cursor; malformed cursors give 422), and reading the log is itself audited (`audit.viewed`). `GET /api/v1/audit-events` is admin-only and scoped to the caller's tenant (client tenant parameters ignored). `TraceId` dependency added. Brief test 8 covered. 254 tests green.

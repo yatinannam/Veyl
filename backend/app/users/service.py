@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import Connection, Engine, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.audit import service as audit
 from app.auth.passwords import hash_password
 from app.authz import Action, AuthContext, Role, authorize
 from app.db.schema import sessions, tenants, users
@@ -72,6 +73,13 @@ def create_user(
                 )
                 .returning(*_COLUMNS)
             ).one()
+            audit.record(
+                conn,
+                tenant_id=ctx.tenant_id,
+                event_type="user.created",
+                actor_user_id=ctx.user_id,
+                details={"user_id": str(row.id), "role": row.role},
+            )
     except IntegrityError as exc:
         raise Conflict("A user with this email already exists.") from exc
     return _record(row)
@@ -116,6 +124,19 @@ def update_user(
         if active_admins == 0:
             raise Conflict("A tenant must keep at least one active admin.")
         bump_policy_version(conn, ctx.tenant_id)
+        if is_active is False:
+            event_type = "user.deactivated"
+        elif role is not None:
+            event_type = "user.role_changed"
+        else:
+            event_type = "user.activated"
+        audit.record(
+            conn,
+            tenant_id=ctx.tenant_id,
+            event_type=event_type,
+            actor_user_id=ctx.user_id,
+            details={"user_id": str(user_id), "role": row.role, "is_active": row.is_active},
+        )
         if is_active is False:
             conn.execute(
                 update(sessions)

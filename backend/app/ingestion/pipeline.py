@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine, delete, func, insert, select, text, update
 
+from app.audit import service as audit
 from app.db.schema import document_chunks, documents, ingestion_jobs
 from app.db.tenancy import bump_policy_version, tenant_transaction
 from app.documents.storage import LocalStorage
@@ -153,6 +154,12 @@ class Ingestor:
             )
             # New readable content: cached results computed before it existed are stale.
             bump_policy_version(conn, job.tenant_id)
+            audit.record(
+                conn,
+                tenant_id=job.tenant_id,
+                event_type="document.ingested",
+                details={"document_id": str(job.document_id), "chunks": len(prepared.chunks)},
+            )
             _finish_job(conn, job, "done")
 
     def fail(self, job: ClaimedJob, error: Exception) -> None:
@@ -161,6 +168,13 @@ class Ingestor:
         with tenant_transaction(self.engine, job.tenant_id) as conn:
             if permanent or job.attempts >= MAX_ATTEMPTS:
                 _finish_job(conn, job, "failed", message)
+                audit.record(
+                    conn,
+                    tenant_id=job.tenant_id,
+                    event_type="document.ingest_failed",
+                    decision="error",
+                    details={"document_id": str(job.document_id), "error": message},
+                )
                 conn.execute(
                     update(documents)
                     .where(documents.c.id == job.document_id)
