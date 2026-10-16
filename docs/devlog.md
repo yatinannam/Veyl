@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 5: auth lookups and provisioning
+
+**Done** — migration 0002: `auth_resolve_login(slug, email)` and `auth_resolve_session(token_hash)`, both SECURITY DEFINER with `search_path = public, pg_temp`, EXECUTE revoked from PUBLIC and granted only to `veyl_app`. Session lookup returns only unexpired, unrevoked sessions of active users. `app/provisioning.py` + `python -m app.cli provision-tenant` (owner URL; password from `VEYL_ADMIN_PASSWORD`, never argv). Guard tests: every definer function pins search_path; the app role can execute exactly the two intended definer functions. 99 tests green.
+**Next** — authentication API (Task 6).
+
 ## 2026-10-16 — Phase 2, Task 4: schema and row-level security
 
 **Done** — migration 0001: `user_role` enum, `app_current_tenant()` (NULLIF guard), `tenants`/`users`/`sessions` with CHECK constraints and composite FK pinning sessions to same-tenant users; ENABLE + FORCE RLS with `*_tenant_isolation` (veyl_app) and `*_owner_all` (veyl_owner) policies; column-level grants. `app/db/schema.py` (Core tables), `app/db/tenancy.py` (`tenant_transaction`, UUID-only). Tests: schema matches migration, every table has forced RLS, no-context sees nothing, own-tenant only, cross-tenant insert refused, context does not leak across pooled transactions, malformed setting fails closed, privilege limits. 84 tests green.

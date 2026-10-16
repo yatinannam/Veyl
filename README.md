@@ -12,7 +12,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (4/8 tasks) |
+| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (5/8 tasks) |
 | 3 | Ingestion, embeddings, filtered retrieval | Planned |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
@@ -33,6 +33,14 @@ docker compose up --build
 | `migrate` | One-shot: runs Alembic migrations as `veyl_owner`, then exits | — |
 | `api` | FastAPI, connects as `veyl_app` (no superuser, no RLS bypass), runs as non-root | http://127.0.0.1:8000/api/v1/docs |
 | `web` | Next.js dashboard; proxies `/api/*` to `api` so the browser sees one origin | http://127.0.0.1:3000 |
+
+### Provisioning a tenant
+
+Tenants are created by an operator with the database owner role, never through the API. The admin password is read from an environment variable so it never appears in the process list or shell history as an argument:
+
+```bash
+docker compose run --rm -e VEYL_ADMIN_PASSWORD='choose-a-long-password' migrate   python -m app.cli provision-tenant --slug acme --name "Acme Corp" --admin-email alice@acme.test
+```
 
 All ports bind to `127.0.0.1` only. Reset everything (including the database volume) with `docker compose down -v`.
 

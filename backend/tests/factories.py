@@ -1,12 +1,14 @@
 import uuid
+from datetime import timedelta
 from functools import cache
 from uuid import UUID
 
-from sqlalchemy import Engine, insert
+from sqlalchemy import Engine, func, insert
 
 from app.auth.passwords import hash_password
+from app.auth.tokens import hash_token, new_session_token
 from app.authz import Role
-from app.db.schema import tenants, users
+from app.db.schema import sessions, tenants, users
 
 DEFAULT_PASSWORD = "correct-horse-battery-staple"
 
@@ -50,3 +52,25 @@ def create_user(
             .returning(users.c.id)
         ).scalar_one()
     return user_id, email
+
+
+def create_session(
+    owner_engine: Engine,
+    tenant_id: UUID,
+    user_id: UUID,
+    *,
+    expires_in: timedelta = timedelta(hours=1),
+    revoked: bool = False,
+) -> str:
+    token = new_session_token()
+    with owner_engine.begin() as conn:
+        conn.execute(
+            insert(sessions).values(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                token_hash=hash_token(token),
+                expires_at=func.now() + expires_in,
+                revoked_at=func.now() if revoked else None,
+            )
+        )
+    return token
