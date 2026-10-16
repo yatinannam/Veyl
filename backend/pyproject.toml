@@ -14,6 +14,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx2>=2.13.1",
+    "hypothesis>=6.170.0",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "ruff>=0.17.0",

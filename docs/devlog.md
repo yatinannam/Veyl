@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 2: authorization policy core
+
+**Done** — `app/authz`: `Role`, `Classification`, clearance map, `AuthContext`, `Action`, `is_allowed`/`authorize` (deny by default; document actions require a same-tenant resource within clearance; managers manage only their own uploads), `permissions(role)` UI hints, and the Python chunk read rule `can_read_chunk`. Hypothesis (added; Phase 0 review minor #10) property tests: readable implies same tenant + within clearance + a grant; document actions never cross tenant or exceed clearance. 59 tests green.
+**Next** — password/token/rate-limit primitives (Task 3).
+
 ## 2026-10-16 — Phase 2, Task 1: errors, trace ids, settings
 
 **Done** — `app/errors.py`: `AppError` hierarchy (401/403/404/409/429/503) and one error envelope with a server-generated trace id (also in `X-Trace-Id`). Validation errors drop submitted values; `OperationalError` maps to 503; unknown exceptions return a generic 500. `Settings.database_url` is now `SecretStr` (Phase 0 review minor #3); added session TTL, login lockout settings, and `cookie_secure` (production only). 27 tests green.
