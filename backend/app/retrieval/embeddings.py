@@ -1,4 +1,5 @@
-from collections.abc import Sequence
+import threading
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 from app.db.schema import EMBEDDING_DIM
@@ -37,3 +38,26 @@ class FastEmbedEmbedder:
 
     def embed_query(self, text: str) -> list[float]:
         return _checked(next(iter(self._model.query_embed(text))))
+
+
+class LazyEmbedder:
+    """Builds the real embedder on first use, so the API starts fast and tests that never
+    query never load the model."""
+
+    def __init__(self, factory: Callable[[], Embedder], model_name: str) -> None:
+        self.model_name = model_name
+        self._factory = factory
+        self._inner: Embedder | None = None
+        self._lock = threading.Lock()
+
+    def _get(self) -> Embedder:
+        with self._lock:
+            if self._inner is None:
+                self._inner = self._factory()
+            return self._inner
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        return self._get().embed_documents(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._get().embed_query(text)

@@ -10,9 +10,16 @@ from sqlalchemy import Engine, create_engine, event, func, insert, select, updat
 
 from app.authz import AuthContext, Classification, Role
 from app.db.schema import document_chunks, documents, retrieval_cache, tenants
+from app.db.tenancy import tenant_transaction
 from app.documents import service as documents_service
 from app.retrieval import search as search_module
-from app.retrieval.search import AuthorizationMismatch, RetrievedChunk, cache_key, retrieve
+from app.retrieval.search import (
+    AuthorizationMismatch,
+    RetrievedChunk,
+    cache_key,
+    fetch_readable_chunks,
+    retrieve,
+)
 from tests.conftest import DatabaseUrls
 from tests.factories import add_chunks, create_document, create_tenant_with_admin, create_user
 from tests.fakes import FakeEmbedder
@@ -275,7 +282,9 @@ def test_forged_cache_entry_is_filtered_on_hit(
         ).scalar_one()
         conn.execute(
             insert(retrieval_cache).values(
-                cache_key=cache_key(member_ctx, version, embedder.model_name, "layoff plan"),
+                cache_key=cache_key(
+                    member_ctx, version, embedder.model_name, "layoff plan", top_k=10, min_score=0.0
+                ),
                 tenant_id=t.tenant_id,
                 user_id=member,
                 policy_version=version,
@@ -339,6 +348,52 @@ def test_python_recheck_fails_closed_if_the_sql_filter_is_wrong(
     )
     with pytest.raises(AuthorizationMismatch):
         _search(app_engine, embedder, _ctx(member, t.tenant_id, Role.MEMBER), "audit findings")
+
+
+def test_python_recheck_rejects_chunks_of_documents_that_are_not_ready(
+    owner_engine: Engine,
+    app_engine: Engine,
+    embedder: FakeEmbedder,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    t = create_tenant_with_admin(owner_engine)
+    _doc(owner_engine, embedder, t.tenant_id, t.admin_id, "draft budget", status="processing")
+    monkeypatch.setattr(
+        search_module, "chunk_read_filter", lambda ctx: document_chunks.c.tenant_id == ctx.tenant_id
+    )
+    with pytest.raises(AuthorizationMismatch):
+        _search(app_engine, embedder, _ctx(t.admin_id, t.tenant_id, Role.ADMIN), "draft budget")
+
+
+def test_cache_key_depends_on_result_shape() -> None:
+    ctx = _ctx(uuid4(), uuid4(), Role.MEMBER)
+    base = cache_key(ctx, 1, "m", "q", top_k=6, min_score=0.5)
+    assert base != cache_key(ctx, 1, "m", "q", top_k=3, min_score=0.5)
+    assert base != cache_key(ctx, 1, "m", "q", top_k=6, min_score=0.0)
+    assert base == cache_key(ctx, 1, "m", " Q ", top_k=6, min_score=0.5)
+
+
+def test_fetch_readable_chunks_drops_what_the_caller_cannot_read(
+    owner_engine: Engine, app_engine: Engine, embedder: FakeEmbedder
+) -> None:
+    t = create_tenant_with_admin(owner_engine)
+    member, _ = create_user(owner_engine, t.tenant_id, role=Role.MEMBER)
+    _, shared = _doc(
+        owner_engine, embedder, t.tenant_id, t.admin_id, "lunch menu", allowed_roles=[Role.MEMBER]
+    )
+    _, secret = _doc(
+        owner_engine,
+        embedder,
+        t.tenant_id,
+        t.admin_id,
+        "board minutes",
+        classification=Classification.RESTRICTED,
+        allowed_roles=[Role.ADMIN],
+    )
+    member_ctx = _ctx(member, t.tenant_id, Role.MEMBER)
+    with tenant_transaction(app_engine, t.tenant_id) as conn:
+        readable = fetch_readable_chunks(conn, member_ctx, [*shared, *secret])
+    assert [c.chunk_id for c in readable] == shared
 
 
 def test_embedding_failure_fails_closed_without_fallback(

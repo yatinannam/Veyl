@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 6: retrieval hardening
+
+**Done** — the Python re-check now asserts all five rules, including document `ready`, not deleted, and matching `acl_version` (Phase 3 review minor 1); a test with a SQL filter that ignores document status proves the re-check catches it. Cache key includes `top_k` and `min_score` (minor 5). `fetch_readable_chunks(conn, ctx, ids)` returns the readable subset in input order (used by cache hits, history, and conversation views). `LazyEmbedder` loads the model on first use so the API starts fast. 279 tests green.
+**Next** — conversations, RAG pipeline, `/query` (Task 7).
+
 ## 2026-10-16 — Phase 4, Task 5: prompt and citations
 
 **Done** — `app/llm/prompt.py`: system prompt (sources are untrusted data; cite with supplied labels; say when not found), labelled `<source>` blocks with neutralised delimiters in content and titles, history between system and question. `app/llm/citations.py`: keeps only supplied labels (case-insensitive, deduplicated, ordered) and strips unknown markers. Mutation check: disabling neutralisation fails 2 tests. 276 tests green.

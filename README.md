@@ -14,7 +14,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (5/8 tasks) |
+| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (6/8 tasks) |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
 
@@ -175,8 +175,8 @@ Citations are checked on the server: only `[S#]` labels that were actually suppl
 Retrieval (`app/retrieval/search.py`) runs in one tenant transaction:
 
 1. Read the tenant's `policy_version`, then look up the cache by `sha256(tenant, user, policy_version, model, normalised query)`.
-2. On a miss, embed the query and run the vector search with the SQL read filter **inside** the query, so unauthorized chunks never leave the database. On a hit, the cached **chunk ids** (never content) are re-fetched through the same filter.
-3. Re-check every returned chunk with the Python policy. Any disagreement aborts the request (`500 authorization_mismatch`) instead of returning data.
+2. On a miss, embed the query and run the vector search with the SQL read filter **inside** the query, so unauthorized chunks never leave the database. On a hit, the cached **chunk ids** (never content) are re-fetched through the same filter. The cache key also includes `top_k` and the minimum score, so different result shapes never share an entry.
+3. Re-check every returned chunk against every rule in Python: tenant, clearance, grant, document ready and not deleted, and matching `acl_version`. Any disagreement aborts the request (`500 authorization_mismatch`) instead of returning data.
 
 There is no fallback path: if embedding or the database fails, the request fails. Permission changes and deletions bump `policy_version`, so every cached result for the tenant stops matching immediately; stale chunks whose `acl_version` lags their document's are invisible even if a rewrite were missed.
 
