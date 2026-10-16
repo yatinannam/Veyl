@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 3: security primitives
+
+**Done** — `app/auth/passwords.py` (argon2id, dummy verify for unknown users, 12..1024 char bounds), `app/auth/tokens.py` (256-bit URL-safe tokens, SHA-256 digests), `app/auth/ratelimit.py` (sliding-window limiter; per-account and 4x looser per-IP). Extra fix beyond the plan: the limiter no longer retains a key for every probe (unbounded memory under account enumeration). 70 tests green.
+**Next** — schema migration with forced RLS (Task 4).
+
 ## 2026-10-16 — Phase 2, Task 2: authorization policy core
 
 **Done** — `app/authz`: `Role`, `Classification`, clearance map, `AuthContext`, `Action`, `is_allowed`/`authorize` (deny by default; document actions require a same-tenant resource within clearance; managers manage only their own uploads), `permissions(role)` UI hints, and the Python chunk read rule `can_read_chunk`. Hypothesis (added; Phase 0 review minor #10) property tests: readable implies same tenant + within clearance + a grant; document actions never cross tenant or exceed clearance. 59 tests green.
