@@ -14,7 +14,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit | Next |
+| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (0/8 tasks) |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
 
