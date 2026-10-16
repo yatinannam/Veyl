@@ -12,7 +12,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Planned |
+| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (1/8 tasks) |
 | 3 | Ingestion, embeddings, filtered retrieval | Planned |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
@@ -60,6 +60,8 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | `GET /api/v1/healthz` | Liveness — process is up |
 | `GET /api/v1/readyz` | Readiness — DB reachable as the app role; **503 if not** (fails closed) |
 | `GET /api/v1/docs` | OpenAPI UI |
+
+**Errors** share one envelope, `{"error": {"code", "message", "trace_id"}}`, and every response carries an `X-Trace-Id` header. Validation errors never echo submitted values; a database outage returns `503 service_unavailable` (fail closed). The database URL is a secret value and never appears in logs or reprs.
 
 ### Frontend (Node 24, pnpm 11)
 

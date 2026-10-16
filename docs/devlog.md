@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 1: errors, trace ids, settings
+
+**Done** — `app/errors.py`: `AppError` hierarchy (401/403/404/409/429/503) and one error envelope with a server-generated trace id (also in `X-Trace-Id`). Validation errors drop submitted values; `OperationalError` maps to 503; unknown exceptions return a generic 500. `Settings.database_url` is now `SecretStr` (Phase 0 review minor #3); added session TTL, login lockout settings, and `cookie_secure` (production only). 27 tests green.
+**Next** — authz policy core (Task 2).
+
 ## 2026-10-16 — Phase 2 plan written
 
 **Done** — [Phase 2 plan](superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md), 8 tasks: error envelope + trace ids + SecretStr settings; pure `authz` policy with Hypothesis properties; argon2id/token/rate-limit primitives; migration 0001 (tenants, users, sessions, forced RLS, column-level grants); definer lookups + operator provisioning CLI; session auth API with CSRF double-submit and lockout; tenant/user management with escalation guards; Compose proxy headers, end-to-end login smoke test in CI, docs.
