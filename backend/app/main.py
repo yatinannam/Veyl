@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 
 from app import health
+from app.audit import router as audit_router
 from app.auth import router as auth_router
 from app.auth.ratelimit import LoginLimiters
 from app.config import Settings
@@ -71,4 +72,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tenants_router.router, prefix=API_PREFIX)
     app.include_router(users_router.router, prefix=API_PREFIX)
     app.include_router(documents_router.router, prefix=API_PREFIX)
+    app.include_router(audit_router.router, prefix=API_PREFIX)
     return app

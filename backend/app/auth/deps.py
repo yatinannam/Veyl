@@ -1,5 +1,6 @@
 import hmac
 from typing import Annotated, cast
+from uuid import UUID
 
 from fastapi import Depends, Request
 from sqlalchemy import Engine
@@ -46,6 +47,11 @@ def require_csrf(request: Request) -> None:
         raise CsrfFailed()
 
 
+def get_trace_id(request: Request) -> UUID:
+    return UUID(request.state.trace_id)
+
+
+TraceId = Annotated[UUID, Depends(get_trace_id)]
 EngineDep = Annotated[Engine, Depends(get_engine)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 CurrentUser = Annotated[AuthContext, Depends(get_auth_context)]

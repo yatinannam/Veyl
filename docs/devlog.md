@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 2: audit service and API
+
+**Done** — `app/audit/service.py`: fixed event-type allowlist, `record()` (ids and decisions only), keyed and normalised `query_reference` (HMAC-SHA256), `list_events` with user/document/type/time filters and keyset pagination (opaque cursor; malformed cursors give 422), and reading the log is itself audited (`audit.viewed`). `GET /api/v1/audit-events` is admin-only and scoped to the caller's tenant (client tenant parameters ignored). `TraceId` dependency added. Brief test 8 covered. 254 tests green.
+**Next** — audit the existing flows (Task 3).
+
 ## 2026-10-16 — Phase 4, Task 1: schema and settings
 
 **Done** — migration 0005: `conversations`, `messages` (cited chunk/document ids, trace id), `audit_events` (namespaced event types, decision enum, ids not content, JSONB details) with forced RLS and insert/select-only grants; an `audit_events_immutable` trigger blocks UPDATE, DELETE, and TRUNCATE even for the owner; `tenants.audit_query_mode` (hash by default). Settings: LLM endpoint/model/key/timeout/max tokens, history turns, required `AUDIT_HMAC_KEY` (32+ chars), `RETRIEVAL_MIN_SCORE` default 0.5. Compose passes `AUDIT_HMAC_KEY` to api and worker. 246 tests green.
