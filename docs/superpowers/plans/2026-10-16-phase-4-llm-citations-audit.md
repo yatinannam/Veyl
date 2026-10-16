@@ -3048,6 +3048,9 @@ def answer_question(
                 role="user",
                 content=question,
                 trace_id=trace_id,
+                # now() is fixed for the whole transaction; the wall clock keeps the user
+                # message strictly before the answer so history replays in order.
+                created_at=func.clock_timestamp(),
             )
         )
         message_id = conn.execute(
@@ -3060,6 +3063,7 @@ def answer_question(
                 cited_chunk_ids=[c.chunk_id for c in citations],
                 cited_document_ids=list(dict.fromkeys(c.document_id for c in citations)),
                 trace_id=trace_id,
+                created_at=func.clock_timestamp(),
             )
             .returning(messages.c.id)
         ).scalar_one()

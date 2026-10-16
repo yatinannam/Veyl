@@ -9,11 +9,15 @@ from app.audit import router as audit_router
 from app.auth import router as auth_router
 from app.auth.ratelimit import LoginLimiters
 from app.config import Settings
+from app.conversations import router as conversations_router
 from app.db.engine import create_db_engine
 from app.documents import router as documents_router
 from app.documents.limits import BodySizeLimit
 from app.documents.storage import LocalStorage
 from app.errors import register_error_handlers
+from app.llm.client import LLMClient, OpenAICompatibleLLM
+from app.rag import router as rag_router
+from app.retrieval.embeddings import Embedder, FastEmbedEmbedder, LazyEmbedder
 from app.tenants import router as tenants_router
 from app.users import router as users_router
 
@@ -21,7 +25,30 @@ API_PREFIX = "/api/v1"
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def _default_embedder(settings: Settings) -> Embedder:
+    return LazyEmbedder(
+        lambda: FastEmbedEmbedder(settings.embedding_model, settings.embedding_cache_dir),
+        settings.embedding_model,
+    )
+
+
+def _default_llm(settings: Settings) -> LLMClient:
+    key = settings.llm_api_key.get_secret_value() if settings.llm_api_key else None
+    return OpenAICompatibleLLM(
+        base_url=settings.llm_base_url,
+        model=settings.llm_model,
+        api_key=key,
+        timeout_seconds=settings.llm_timeout_seconds,
+        max_tokens=settings.llm_max_tokens,
+    )
+
+
+def create_app(
+    settings: Settings | None = None,
+    *,
+    embedder: Embedder | None = None,
+    llm: LLMClient | None = None,
+) -> FastAPI:
     settings = settings or Settings()
 
     @asynccontextmanager
@@ -48,6 +75,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_concurrent_hashes=settings.login_max_concurrent_hashes,
     )
     app.state.storage = LocalStorage(settings.upload_dir)
+    app.state.embedder = embedder or _default_embedder(settings)
+    app.state.llm = llm or _default_llm(settings)
     register_error_handlers(app)
 
     @app.middleware("http")
@@ -73,4 +102,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users_router.router, prefix=API_PREFIX)
     app.include_router(documents_router.router, prefix=API_PREFIX)
     app.include_router(audit_router.router, prefix=API_PREFIX)
+    app.include_router(rag_router.router, prefix=API_PREFIX)
+    app.include_router(conversations_router.router, prefix=API_PREFIX)
     return app

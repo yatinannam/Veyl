@@ -5,15 +5,32 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from app.config import Settings
+from app.llm.client import LLMClient
 from app.main import create_app
+from app.retrieval.embeddings import Embedder
 from tests.factories import DEFAULT_PASSWORD
+from tests.fakes import FakeEmbedder, RecordingLLM
 
 API = "/api/v1"
 
 
-def client_for(database_url: str, **settings: Any) -> TestClient:
-    """Use as a context manager so the app lifespan (engine) runs."""
-    return TestClient(create_app(Settings(database_url=database_url, **settings)))
+def client_for(
+    database_url: str,
+    *,
+    embedder: Embedder | None = None,
+    llm: LLMClient | None = None,
+    **settings: Any,
+) -> TestClient:
+    """Use as a context manager so the app lifespan (engine) runs. Fakes by default: tests
+    never load the embedding model or call a real LLM."""
+    settings.setdefault("retrieval_min_score", 0.0)
+    return TestClient(
+        create_app(
+            Settings(database_url=database_url, **settings),
+            embedder=embedder or FakeEmbedder(),
+            llm=llm or RecordingLLM(),
+        )
+    )
 
 
 def login(client: TestClient, slug: str, email: str, password: str = DEFAULT_PASSWORD) -> Any:

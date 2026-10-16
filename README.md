@@ -14,7 +14,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (6/8 tasks) |
+| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (7/8 tasks) |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
 
@@ -90,6 +90,10 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | `GET /api/v1/documents/{id}` | One readable document (404 otherwise) |
 | `PUT /api/v1/documents/{id}/permissions` | Change classification and grants; rewrites every chunk's ACL in the same transaction |
 | `DELETE /api/v1/documents/{id}` | Soft delete; removes chunks and the stored file |
+| `POST /api/v1/query` | `{question, conversation_id?}` → `{answer, citations[], conversation_id, message_id, trace_id}` |
+| `GET /api/v1/conversations` | Your own conversations |
+| `GET /api/v1/conversations/{id}` | One of your conversations; answers whose sources you lost are hidden |
+| `DELETE /api/v1/conversations/{id}` | Delete one of your conversations |
 | `GET /api/v1/audit-events` | Admin only, own tenant: filter by `user_id`, `document_id`, `event_type`, `from`, `to`; keyset pagination via `cursor` |
 
 **Errors** share one envelope, `{"error": {"code", "message", "trace_id"}}`, and every response carries an `X-Trace-Id` header. Validation errors never echo submitted values; a database outage returns `503 service_unavailable` (fail closed). The database URL is a secret value and never appears in logs or reprs.
@@ -151,6 +155,18 @@ Uploaded files are processed by a background worker:
 The worker (`python -m app.worker`) claims jobs with `FOR UPDATE SKIP LOCKED` through a narrow database function, so several workers can run safely and a crashed worker's job is reclaimed after 10 minutes. Extraction and embedding happen outside any transaction; the chunks are then written while holding a share lock on the document, copying its ACL at that moment, so a permission change made during ingestion always reaches the new chunks. Unreadable or encrypted files fail immediately with a message the uploader can see; other errors retry up to 3 times with backoff. Extraction runs in a separate process with a time limit, a memory limit (Linux), and a cap on extracted text, so a crafted file (some PDFs take minutes to parse from a few kilobytes) cannot stall ingestion for other tenants; a job that keeps crashing the worker is failed after 3 attempts instead of being retried forever. A document becoming ready invalidates cached search results, so it is searchable immediately.
 
 Tests use a deterministic fake embedder; one test runs the real model (skip it offline with `VEYL_SKIP_MODEL_TESTS=1`).
+
+## Asking questions
+
+`POST /api/v1/query` runs the full pipeline:
+
+1. If a `conversation_id` is given, it must be yours (otherwise 404, audited as `rag.denied`). Earlier turns are re-authorized: an answer that cited something you can no longer read is replaced before it reaches the model, and hidden in the conversation view too.
+2. Permission-filtered retrieval (above). If nothing you can read is relevant enough (`RETRIEVAL_MIN_SCORE`, default 0.5), you get "I could not find anything about that..." and **the model is never called**.
+3. Otherwise the model sees only your authorized chunks, framed as untrusted sources, plus your re-authorized history.
+4. Citations are verified on the server and returned with document id, title, chunk id, and a short snippet.
+5. The exchange is stored in your conversation and audited (`rag.query`: chunk and document ids, result count, model, trace id; the question only as a keyed hash unless the tenant opts into plaintext).
+
+Failures fail closed: embedding or database problems give `503 service_unavailable`, an LLM failure gives `503 llm_unavailable`, and an internal authorization disagreement gives `500 authorization_mismatch`. Nothing is stored for a failed question, and the failure is audited.
 
 ## LLM providers
 

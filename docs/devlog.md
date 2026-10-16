@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 7: RAG pipeline and /query
+
+**Done** — `app/rag/service.py` (`answer_question`: ownership check with audited denial, re-authorized history, filtered retrieval with no fallback, LLM skipped when nothing authorized is relevant, server-side citations with snippets, one transaction to store the exchange and audit `rag.query`; failures audited as `error` with the stage), `app/conversations` (own conversations only; answers whose cited chunks are no longer readable are hidden in views and history), routers for `/query` and `/conversations`, `create_app(embedder=, llm=)` injection with a lazy real embedder by default. Security tests: brief 3 (canary never in any prompt), 7 (end-to-end cache), 9 (only supplied, readable citations), T12 (injected text stays in its neutralised source block), T13 (history re-authorization; other users' conversations 404), T14 (LLM and embedding failures fail closed and are audited), audit records ids not content, plaintext mode, forged tenant field rejected. Found and fixed a history-ordering bug (per-transaction `now()`). Mutation check: not hiding stale answers fails the history test. 298 tests green.
+**Next** — LLM stand-in, end-to-end query smoke, live Groq check, docs, review (Task 8).
+
 ## 2026-10-16 — Phase 4, Task 6: retrieval hardening
 
 **Done** — the Python re-check now asserts all five rules, including document `ready`, not deleted, and matching `acl_version` (Phase 3 review minor 1); a test with a SQL filter that ignores document status proves the re-check catches it. Cache key includes `top_k` and `min_score` (minor 5). `fetch_readable_chunks(conn, ctx, ids)` returns the readable subset in input order (used by cache hits, history, and conversation views). `LazyEmbedder` loads the model on first use so the API starts fast. 279 tests green.
