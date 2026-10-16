@@ -1232,7 +1232,8 @@ match `app.authz.can_read_chunk` over an exhaustive ACL universe.
 
 Kept out of `app.authz.__init__` because `app.db.schema` imports `app.authz.roles`."""
 
-from sqlalchemy import ColumnElement, Table, and_, or_, true
+from sqlalchemy import ColumnElement, Table, and_, any_, literal, or_, true
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.authz.context import AuthContext
 from app.authz.roles import Classification, Role, within_clearance
@@ -1255,8 +1256,8 @@ def _grant(ctx: AuthContext, table: Table) -> ColumnElement[bool]:
     if ctx.role is Role.ADMIN:
         return true()
     return or_(
-        table.c.allowed_roles.any(ctx.role.value),
-        table.c.allowed_user_ids.any(ctx.user_id),
+        literal(ctx.role.value) == any_(table.c.allowed_roles),
+        literal(ctx.user_id, UUID(as_uuid=True)) == any_(table.c.allowed_user_ids),
     )
 
 

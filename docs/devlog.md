@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 2: SQL read filters
+
+**Done** — `app/authz/sql.py`: `document_read_filter(ctx)` and `chunk_read_filter(ctx)` (all five conditions of the chunk rule, over `CHUNK_JOIN`). Exhaustive equivalence test against `can_read_chunk`: 27 callers x 256 ACLs, for chunks and documents; plus unready/deleted/stale-version documents hide their chunks. Mutation check: dropping the clearance condition from SQL fails the proof. Uses `any_()` (SQLAlchemy 2.1 deprecates `ARRAY.any()`). 152 tests green.
+**Next** — embeddings, extraction, chunker (Task 3).
+
 ## 2026-10-16 — Phase 3, Task 1: documents schema and job claiming
 
 **Done** — migration 0003: `classification`/`doc_status`/`job_status` enums; `documents` (ACL, `acl_version`, status, soft delete), `document_chunks` (`vector(384)`, HNSW cosine index, ACL copy, GIN on role/user arrays), `ingestion_jobs`, `retrieval_cache`; all with forced RLS, owner policy, column-level grants, composite tenant FKs. `ingestion_claim_job(interval)` SECURITY DEFINER with `FOR UPDATE SKIP LOCKED` and stale-job reclaim. Membership lock is now `FOR NO KEY UPDATE` (Phase 2 review minor 2; mutation check: `FOR UPDATE` makes the new test fail). New settings for uploads, embeddings, retrieval, worker. Deps: pgvector, fastembed, pypdf, python-multipart. 149 tests green.
