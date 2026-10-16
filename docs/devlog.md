@@ -2,6 +2,16 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3 complete: documents, ingestion, filtered retrieval
+
+**Summary** — documents with ACLs and soft delete; chunks carrying a copy of the ACL plus a 384-dim embedding under an HNSW index; an ingestion worker (claim with SKIP LOCKED, prepare outside transactions, persist under FOR SHARE, retries); permission-filtered retrieval with the filter inside the vector query, an ids-only cache keyed by `policy_version`, and a Python re-check that fails closed. SQL and Python read rules proven equal over an exhaustive ACL universe. Uploads validated by type and content, size-limited while streaming, stored under server keys. The embedding model is baked into the image (offline). Compose adds the `worker` service and an `uploads` volume; CI now uploads a document through the public entry point and waits for the real model to ingest it. Verified locally end to end. 229 backend tests.
+
+**Findings during the phase** — SQLAlchemy 2.1 deprecates `ARRAY.any()` (switched to `any_()`); a claim test had a cross-tenant job (fixed); EXPLAIN showed small tenants are searched exactly, and a behavioural recall test for large filtered tenants was flaky because HNSW is approximate, so recall there is documented as best-effort (D-028).
+
+**Open notes** — Next.js may cap proxied request bodies near 10 MB; check large uploads through the proxy in Phase 5. Phase 0 and Phase 2 deferred minors remain listed above.
+
+**Next** — whole-phase review, then Phase 4 (LLM, prompt construction, citations, conversations, audit log).
+
 ## 2026-10-16 — Phase 3, Task 7: filtered retrieval and cache
 
 **Done** — `app/retrieval/search.py`: one tenant transaction reads `policy_version`, the cache (chunk ids only, keyed by tenant/user/policy_version/model/normalised query), and runs the pgvector search with `chunk_read_filter` inside the query; cache hits are re-fetched through the same filter; every row is re-checked with `can_read_chunk` and any mismatch raises `AuthorizationMismatch`. Security tests for brief items 1, 2, 6, 7 plus forged cache rows, permission-change invalidation, Python re-check, and fail-closed embedding errors. Mutation checks: removing the SQL filter on cache hits fails the forged-cache test; removing the iterative-scan setting fails its test.

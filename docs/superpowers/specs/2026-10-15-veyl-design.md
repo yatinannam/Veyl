@@ -325,7 +325,7 @@ erDiagram
 - **Composite foreign keys pin tenant consistency:** `document_chunks(tenant_id, document_id) → documents(tenant_id, id)`, `documents(tenant_id, uploaded_by) → users(tenant_id, id)`, `messages(tenant_id, conversation_id) → conversations(tenant_id, id)`, etc. (requires `UNIQUE (tenant_id, id)` on parents). A chunk physically cannot point at another tenant's document.
 - `users`: `UNIQUE (tenant_id, email)`.
 - `document_chunks`: `UNIQUE (document_id, chunk_index)`; HNSW index `embedding vector_cosine_ops`; btree `(tenant_id, document_id)`; GIN on `allowed_roles`, `allowed_user_ids`.
-- `allowed_roles` is a `user_role[]` enum array — invalid role strings are rejected by the DB.
+- `allowed_roles` is `text[]` with `CHECK (allowed_roles <@ ARRAY['member','manager','admin'])` — invalid role strings are rejected by the DB (D-024).
 - pgvector ≥ 0.8 with `hnsw.iterative_scan = relaxed_order` so filtered HNSW queries still return up to *k* results.
 - `audit_events`: btree `(tenant_id, occurred_at DESC)`, `(tenant_id, actor_user_id, occurred_at DESC)`; GIN `retrieved_document_ids`. `veyl_app` has `INSERT, SELECT` only; a trigger raises on `UPDATE`/`DELETE`/`TRUNCATE`.
 - `retrieval_cache`: btree `expires_at` for sweeping.
@@ -351,7 +351,7 @@ Even if step 3 were somehow skipped, rule 3 of §4.3 (`chunk.acl_version = docum
    - original filename kept only as metadata; stored at `uploads/{tenant_id}/{document_id}` (server-generated key, no user input in paths);
    - SHA-256 recorded.
    Insert `documents(status='pending')` + `ingestion_jobs` row + `document.uploaded` audit event in one transaction. Return 202.
-2. **Worker** claims a job, sets tenant context, marks document `processing`.
+2. **Worker** claims a job, sets tenant context, marks document `processing`. Steps 3-5 run outside any transaction; step 6 is a short transaction (D-027).
 3. **Extract:** pypdf for PDF (reject encrypted, cap pages via `MAX_PDF_PAGES`), plain decode for TXT/MD.
 4. **Chunk:** in-house recursive splitter — paragraphs → sentences → hard cut; target ~800 chars, ~120 overlap; Markdown headings kept with their section.
 5. **Embed:** batch via `Embedder`.
@@ -546,7 +546,7 @@ Veyl/
 | 0 | Repo setup: skeletons, tooling, compose, CI, docs scaffold | `docker compose up` starts db, migrate, api, web with health endpoints; CI green (worker added in Phase 3 — D-012) |
 | 1 | (This spec) architecture + threat model | Spec approved |
 | 2 | Schema + migrations + RLS + auth + authz | RLS, auth, and authz tests pass |
-| 3 | Upload, worker ingestion, chunk ACL, embeddings, filtered retrieval, cache | Retrieval security tests (#1, #2, #4–#7) pass |
+| 3 | Upload, worker ingestion, chunk ACL, embeddings, filtered retrieval, cache | Retrieval security tests (#1, #2, #4-#7) pass; done 2026-10-16 |
 | 4 | LLM client, prompt builder, citations, conversations, audit | Tests #3, #8, #9 + T12–T14 pass |
 | 5 | Frontend dashboard | All pages working against real API |
 | 6 | Demo seed, docs (architecture, threat model, API, demo), README polish | Fresh clone → demo works by following README |
