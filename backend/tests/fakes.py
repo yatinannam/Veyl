@@ -2,6 +2,7 @@ import hashlib
 import io
 import math
 import re
+import zlib
 from collections.abc import Sequence
 
 from pypdf import PdfReader, PdfWriter
@@ -43,6 +44,21 @@ class FakeEmbedder:
         return self._vector(text)
 
 
+def _assemble_pdf(objects: dict[int, bytes]) -> bytes:
+    out = bytearray(b"%PDF-1.4\n")
+    offsets: dict[int, int] = {}
+    for object_id in sorted(objects):
+        offsets[object_id] = len(out)
+        out += f"{object_id} 0 obj\n".encode() + objects[object_id] + b"\nendobj\n"
+    xref = len(out)
+    size = max(objects) + 1
+    out += f"xref\n0 {size}\n".encode() + b"0000000000 65535 f \n"
+    for object_id in range(1, size):
+        out += f"{offsets[object_id]:010d} 00000 n \n".encode()
+    out += f"trailer\n<< /Size {size} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return bytes(out)
+
+
 def make_pdf(pages: Sequence[str]) -> bytes:
     """A minimal valid PDF with one line of Helvetica text per page."""
     page_ids = [4 + 2 * i for i in range(len(pages))]
@@ -65,18 +81,28 @@ def make_pdf(pages: Sequence[str]) -> bytes:
         objects[content_id] = (
             b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream"
         )
-    out = bytearray(b"%PDF-1.4\n")
-    offsets: dict[int, int] = {}
-    for object_id in sorted(objects):
-        offsets[object_id] = len(out)
-        out += f"{object_id} 0 obj\n".encode() + objects[object_id] + b"\nendobj\n"
-    xref = len(out)
-    size = max(objects) + 1
-    out += f"xref\n0 {size}\n".encode() + b"0000000000 65535 f \n"
-    for object_id in range(1, size):
-        out += f"{offsets[object_id]:010d} 00000 n \n".encode()
-    out += f"trailer\n<< /Size {size} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
-    return bytes(out)
+    return _assemble_pdf(objects)
+
+
+def make_heavy_pdf(stream_bytes: int) -> bytes:
+    """A few-KB PDF whose single page decompresses to `stream_bytes` of text operators.
+    pypdf's extraction time grows roughly quadratically with that size."""
+    line = b"BT /F1 12 Tf 72 720 Td (word) Tj ET\n"
+    data = zlib.compress(line * (stream_bytes // len(line)), 9)
+    return _assemble_pdf(
+        {
+            1: b"<< /Type /Catalog /Pages 2 0 R >>",
+            2: b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+            3: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            4: b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>",
+            5: b"<< /Length "
+            + str(len(data)).encode()
+            + b" /Filter /FlateDecode >>\nstream\n"
+            + data
+            + b"\nendstream",
+        }
+    )
 
 
 def encrypt_pdf(data: bytes, password: str = "secret") -> bytes:

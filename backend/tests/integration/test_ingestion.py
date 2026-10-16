@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -11,8 +12,9 @@ from app.documents import service as documents_service
 from app.documents.storage import LocalStorage
 from app.documents.validation import validate_upload
 from app.ingestion.pipeline import MAX_ATTEMPTS, Ingestor, claim_job
+from app.retrieval.search import retrieve
 from tests.factories import SeededTenant, create_tenant_with_admin, create_user, drain_jobs
-from tests.fakes import FakeEmbedder, encrypt_pdf, make_pdf
+from tests.fakes import FakeEmbedder, encrypt_pdf, make_heavy_pdf, make_pdf
 
 pytestmark = pytest.mark.integration
 
@@ -186,3 +188,31 @@ def test_documents_deleted_before_processing_are_skipped(
     documents_service.delete_document(app_engine, storage, admin, document_id)
     assert Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50).run_once() is True
     assert _chunks(owner_engine, document_id) == []
+
+
+def test_finished_ingestion_invalidates_cached_retrieval(
+    owner_engine: Engine, app_engine: Engine, seeded: SeededTenant, tmp_path: Path
+) -> None:
+    storage = LocalStorage(tmp_path)
+    admin = _admin(seeded)
+    embedder = FakeEmbedder()
+    _upload(app_engine, storage, admin, "faq.txt", b"parking permits are issued by facilities")
+    ttl = timedelta(minutes=10)
+    assert retrieve(app_engine, embedder, admin, "parking permits", top_k=5, cache_ttl=ttl) == []
+    Ingestor(app_engine, storage, embedder, max_pdf_pages=50).run_once()
+    results = retrieve(app_engine, embedder, admin, "parking permits", top_k=5, cache_ttl=ttl)
+    assert results
+    assert "parking permits" in results[0].content
+
+
+def test_pathological_pdf_fails_permanently_instead_of_stalling_the_worker(
+    owner_engine: Engine, app_engine: Engine, seeded: SeededTenant, tmp_path: Path
+) -> None:
+    storage = LocalStorage(tmp_path)
+    document_id = _upload(
+        app_engine, storage, _admin(seeded), "bomb.pdf", make_heavy_pdf(2_000_000)
+    )
+    ingestor = Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50, timeout_seconds=2)
+    assert ingestor.run_once() is True
+    doc = _document(owner_engine, document_id)
+    assert (doc.status, doc.error) == ("failed", "document took too long to process")

@@ -1,7 +1,9 @@
+import time
+
 import pytest
 
-from app.ingestion.extract import ExtractionError, extract_text
-from tests.fakes import encrypt_pdf, make_pdf
+from app.ingestion.extract import ExtractionError, extract_text, extract_text_isolated
+from tests.fakes import encrypt_pdf, make_heavy_pdf, make_pdf
 
 
 def test_text_and_markdown_are_decoded_as_utf8() -> None:
@@ -44,3 +46,33 @@ def test_garbage_pdfs_are_rejected() -> None:
 def test_unknown_kinds_are_rejected() -> None:
     with pytest.raises(ExtractionError):
         extract_text("exe", b"MZ", max_pdf_pages=10)
+
+
+def _isolated(
+    kind: str, data: bytes, *, max_chars: int = 1_000_000, timeout_seconds: float = 30
+) -> str:
+    return extract_text_isolated(
+        kind, data, max_pdf_pages=10, max_chars=max_chars, timeout_seconds=timeout_seconds
+    )
+
+
+def test_isolated_extraction_returns_text() -> None:
+    assert _isolated("md", b"# Hi\n\nthere") == "# Hi\n\nthere"
+
+
+def test_isolated_extraction_reports_extraction_errors() -> None:
+    with pytest.raises(ExtractionError, match="encrypted"):
+        _isolated("pdf", encrypt_pdf(make_pdf(["secret"])))
+
+
+def test_pathological_pdf_is_stopped_by_the_time_limit() -> None:
+    # About 6 KB on disk, about 8 s of pypdf time unbounded (quadratic in stream size).
+    started = time.monotonic()
+    with pytest.raises(ExtractionError, match="too long"):
+        _isolated("pdf", make_heavy_pdf(2_000_000), timeout_seconds=2)
+    assert time.monotonic() - started < 6
+
+
+def test_documents_with_too_much_text_are_rejected() -> None:
+    with pytest.raises(ExtractionError, match="too much text"):
+        _isolated("txt", b"word " * 1000, max_chars=100)

@@ -2,6 +2,27 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3 review: fixes and deferred items
+
+**Review** — independent whole-phase review: no Critical, 2 Important, 9 Minor. No path found that returns another tenant's content or content above clearance; all five Review Focus items held (the reviewer streamed 196 MB with no Content-Length and got 413 in 0.2 s).
+
+**Fixed (Important)**
+- *A tiny PDF could stall the single worker for hours, and a crashing job was reclaimed forever.* Measured: a 6 KB PDF took 7.9 s in pypdf (quadratic). Extraction now runs in a spawned child process with a wall-clock limit, an address-space limit on Linux, and an extracted-text cap (D-030); tests RED to GREEN. Migration 0004 makes the claim function fail stale jobs that used every attempt, along with their document (D-031); test RED to GREEN.
+- *New documents were hidden by cached empty results for up to 10 minutes.* Ingestion now bumps `policy_version` when a document becomes ready (D-032); test RED to GREEN.
+
+**Deferred (Minor)**
+1. The Python re-check does not assert document status, `deleted_at`, or `acl_version` (rules 2-3 are SQL-only). Phase 4 prompt assembly should re-check them.
+2. NUL bytes or lone surrogates in PDF text are treated as transient (3 retries before failing).
+3. A NUL in the upload title returns 500 instead of 422.
+4. Two tests would pass without their guards (deleted-before-processing; ingestion race is sequential).
+5. The cache key omits `top_k` and `min_score`; add both before Phase 4 exposes them.
+6. No lease token on jobs: double processing is possible with several workers or runs over 10 minutes.
+7. The 64 KB multipart allowance can be exceeded by about 500 `allowed_user_ids`; cap the list on upload.
+8. The baked embedding model revision is not pinned.
+9. Chunk ACL equality with the document ACL is not enforced by a database trigger.
+
+**Phase 4 notes from review** — reuse `_fetch_by_ids` to re-authorize conversation history; re-ingestion replaces chunk ids, so old citations will read as "access changed".
+
 ## 2026-10-16 — Phase 3 complete: documents, ingestion, filtered retrieval
 
 **Summary** — documents with ACLs and soft delete; chunks carrying a copy of the ACL plus a 384-dim embedding under an HNSW index; an ingestion worker (claim with SKIP LOCKED, prepare outside transactions, persist under FOR SHARE, retries); permission-filtered retrieval with the filter inside the vector query, an ids-only cache keyed by `policy_version`, and a Python re-check that fails closed. SQL and Python read rules proven equal over an exhaustive ACL universe. Uploads validated by type and content, size-limited while streaming, stored under server keys. The embedding model is baked into the image (offline). Compose adds the `worker` service and an `uploads` volume; CI now uploads a document through the public entry point and waits for the real model to ingest it. Verified locally end to end. 229 backend tests.

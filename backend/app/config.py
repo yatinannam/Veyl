@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     upload_dir: str = "/data/uploads"
     max_upload_mb: int = Field(default=10, ge=1, le=100)
     max_pdf_pages: int = Field(default=200, ge=1)
+    max_extracted_chars: int = Field(default=2_000_000, ge=1000)
+    extraction_timeout_seconds: float = Field(default=60.0, gt=0)
+    extraction_memory_mb: int = Field(default=1024, ge=64)
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_cache_dir: str | None = None
     retrieval_top_k: int = Field(default=6, ge=1, le=50)

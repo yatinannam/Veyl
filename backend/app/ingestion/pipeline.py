@@ -6,11 +6,11 @@ from uuid import UUID
 from sqlalchemy import Connection, Engine, delete, func, insert, select, text, update
 
 from app.db.schema import document_chunks, documents, ingestion_jobs
-from app.db.tenancy import tenant_transaction
+from app.db.tenancy import bump_policy_version, tenant_transaction
 from app.documents.storage import LocalStorage
 from app.documents.validation import KIND_BY_MIME
 from app.ingestion.chunker import chunk_text
-from app.ingestion.extract import ExtractionError, extract_text
+from app.ingestion.extract import ExtractionError, extract_text_isolated
 from app.retrieval.embeddings import Embedder
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,8 @@ class PreparedDocument:
 def claim_job(engine: Engine) -> ClaimedJob | None:
     with engine.begin() as conn:
         row = conn.execute(
-            text("SELECT * FROM ingestion_claim_job(:stale)"), {"stale": STALE_AFTER}
+            text("SELECT * FROM ingestion_claim_job(:stale, :max_attempts)"),
+            {"stale": STALE_AFTER, "max_attempts": MAX_ATTEMPTS},
         ).one_or_none()
     if row is None:
         return None
@@ -55,12 +56,23 @@ def _finish_job(conn: Connection, job: ClaimedJob, status: str, error: str | Non
 
 class Ingestor:
     def __init__(
-        self, engine: Engine, storage: LocalStorage, embedder: Embedder, *, max_pdf_pages: int
+        self,
+        engine: Engine,
+        storage: LocalStorage,
+        embedder: Embedder,
+        *,
+        max_pdf_pages: int,
+        max_chars: int = 2_000_000,
+        timeout_seconds: float = 60.0,
+        memory_bytes: int | None = None,
     ) -> None:
         self.engine = engine
         self.storage = storage
         self.embedder = embedder
         self.max_pdf_pages = max_pdf_pages
+        self.max_chars = max_chars
+        self.timeout_seconds = timeout_seconds
+        self.memory_bytes = memory_bytes
 
     def prepare(self, job: ClaimedJob) -> PreparedDocument | None:
         """Extract, chunk, and embed outside any long transaction."""
@@ -79,8 +91,13 @@ class Ingestor:
                 .values(status="processing", updated_at=func.now())
             )
         data = self.storage.read(doc.storage_key)
-        text_content = extract_text(
-            KIND_BY_MIME[doc.mime_type], data, max_pdf_pages=self.max_pdf_pages
+        text_content = extract_text_isolated(
+            KIND_BY_MIME[doc.mime_type],
+            data,
+            max_pdf_pages=self.max_pdf_pages,
+            max_chars=self.max_chars,
+            timeout_seconds=self.timeout_seconds,
+            memory_bytes=self.memory_bytes,
         )
         pieces = chunk_text(text_content)
         if not pieces:
@@ -134,6 +151,8 @@ class Ingestor:
                 .where(documents.c.id == job.document_id)
                 .values(status="ready", error=None, updated_at=func.now())
             )
+            # New readable content: cached results computed before it existed are stale.
+            bump_policy_version(conn, job.tenant_id)
             _finish_job(conn, job, "done")
 
     def fail(self, job: ClaimedJob, error: Exception) -> None:

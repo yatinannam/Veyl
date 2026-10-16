@@ -26,6 +26,9 @@ def main() -> int:
         LocalStorage(settings.upload_dir),
         embedder,
         max_pdf_pages=settings.max_pdf_pages,
+        max_chars=settings.max_extracted_chars,
+        timeout_seconds=settings.extraction_timeout_seconds,
+        memory_bytes=settings.extraction_memory_mb * 1024 * 1024,
     )
     stop = threading.Event()
 

@@ -188,6 +188,7 @@ def create_job(
     status: str = "queued",
     run_after: timedelta = timedelta(0),
     locked_ago: timedelta | None = None,
+    attempts: int = 0,
 ) -> UUID:
     with owner_engine.begin() as conn:
         return conn.execute(  # type: ignore[no-any-return]
@@ -198,6 +199,7 @@ def create_job(
                 status=status,
                 run_after=func.now() + run_after,
                 locked_at=(func.now() - locked_ago) if locked_ago is not None else None,
+                attempts=attempts,
             )
             .returning(ingestion_jobs.c.id)
         ).scalar_one()
