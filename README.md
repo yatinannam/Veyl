@@ -13,7 +13,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
-| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (5/8 tasks) |
+| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (6/8 tasks) |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
@@ -143,6 +143,8 @@ Uploaded files are processed by a background worker:
 1. **Extract** text. PDFs via pypdf (encrypted PDFs and files over the page cap are rejected), TXT and Markdown as UTF-8 (NUL bytes rejected).
 2. **Chunk** it: paragraphs, then sentences, then hard cuts, about 800 characters with about 120 characters of overlap; a Markdown heading always starts a new chunk with its section.
 3. **Embed** each chunk locally with `BAAI/bge-small-en-v1.5` (384 dimensions, ONNX via fastembed). No API key, no network once the model is cached, $0.
+
+The worker (`python -m app.worker`) claims jobs with `FOR UPDATE SKIP LOCKED` through a narrow database function, so several workers can run safely and a crashed worker's job is reclaimed after 10 minutes. Extraction and embedding happen outside any transaction; the chunks are then written while holding a share lock on the document, copying its ACL at that moment, so a permission change made during ingestion always reaches the new chunks. Unreadable or encrypted files fail immediately with a message the uploader can see; other errors retry up to 3 times with backoff.
 
 Tests use a deterministic fake embedder; one test runs the real model (skip it offline with `VEYL_SKIP_MODEL_TESTS=1`).
 

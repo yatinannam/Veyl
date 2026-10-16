@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 6: ingestion worker
+
+**Done** — `app/ingestion/pipeline.py`: `claim_job` (definer function), `Ingestor.prepare` (marks processing; extract/chunk/embed outside the transaction), `persist` (FOR SHARE on the document, replace chunks with the current ACL and `acl_version`, mark ready), `fail` (extraction errors are permanent with a safe message; others retry with backoff up to 3 attempts, then fail with a generic message), `run_once`. `app/worker.py`: loop with SIGTERM/SIGINT handling and DB-outage tolerance. Tests: text and PDF ingestion with ACL copies, encrypted PDF fails permanently, retries then failure, permission change between prepare and persist reaches the chunks, deleted documents skipped. 215 tests green.
+**Next** — permission-filtered retrieval and cache (Task 7).
+
 ## 2026-10-16 — Phase 3, Task 5: documents API
 
 **Done** — `app/documents/service.py` + router: upload (authorize before storing; uploader always in `allowed_user_ids`; grants only to users in the same tenant; file removed if the DB transaction fails; job queued in the same transaction), list/get via `document_read_filter` (404 for unreadable or foreign ids), permission change (spec 5.4: document ACL + every chunk ACL + `acl_version` + tenant `policy_version` in one transaction under `FOR NO KEY UPDATE`; managers limited to their own uploads and their clearance, before and after), delete (soft delete, chunks and file removed, policy bump). ACL fields returned only to callers who can manage. Body-size middleware mounted on `/documents`. Tests cover roles/clearance on upload, cross-tenant grants, ACL hiding, 404s, chunk ACL rewrite, manager limits, delete, oversize (no file, no row), disallowed types, hostile filenames, forged tenant fields. 209 tests green.
