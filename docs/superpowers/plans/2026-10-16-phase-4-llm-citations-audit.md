@@ -1641,9 +1641,12 @@ class OpenAICompatibleLLM:
         }
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
-        request = urllib.request.Request(self.endpoint, data=body, headers=headers, method="POST")
+        # The endpoint scheme is validated as http(s) in __init__.
+        request = urllib.request.Request(  # noqa: S310
+            self.endpoint, data=body, headers=headers, method="POST"
+        )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - scheme validated in __init__
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310
                 payload = json.loads(response.read(MAX_RESPONSE_BYTES))
         except urllib.error.HTTPError as exc:
             raise LLMError(f"provider returned HTTP {exc.code}") from exc

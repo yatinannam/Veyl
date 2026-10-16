@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pypdf import PdfReader, PdfWriter
 
 from app.db.schema import EMBEDDING_DIM
+from app.llm.client import ChatMessage, Completion, LLMError
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -111,3 +112,23 @@ def encrypt_pdf(data: bytes, password: str = "secret") -> bytes:
     buffer = io.BytesIO()
     writer.write(buffer)
     return buffer.getvalue()
+
+
+class RecordingLLM:
+    """Records every prompt so tests can inspect exactly what the model would have seen."""
+
+    model = "recording-llm"
+
+    def __init__(self, reply: str = "Answer from the sources [S1].", *, fail: bool = False) -> None:
+        self.reply = reply
+        self.fail = fail
+        self.calls: list[list[ChatMessage]] = []
+
+    def complete(self, messages: Sequence[ChatMessage]) -> Completion:
+        self.calls.append(list(messages))
+        if self.fail:
+            raise LLMError("provider unreachable")
+        return Completion(text=self.reply, model=self.model, response_id="recorded-1")
+
+    def prompt_text(self) -> str:
+        return "\n".join(m.content for call in self.calls for m in call)

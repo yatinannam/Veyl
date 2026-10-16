@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 4: LLM client
+
+**Done** — `app/llm/client.py`: `OpenAICompatibleLLM` over stdlib urllib (no new dependency): http(s) URLs only, bearer key only when set, temperature 0.1, bounded response size, `message.content` only (provider `reasoning` ignored); HTTP errors, timeouts, unreachable hosts, invalid JSON, and unexpected shapes all raise `LLMError`. Tested against a real local HTTP server imitating a provider (success, no-key, 401, garbage, wrong shape, slow, unreachable, bad schemes). `RecordingLLM` test fake records every prompt. 268 tests green.
+**Next** — prompt builder and citation resolver (Task 5).
+
 ## 2026-10-16 — Phase 4, Task 3: audit the existing flows
 
 **Done** — audit events in the same transaction as the action: `auth.login_succeeded`, `auth.login_failed` (deny; only when the account exists, so the tenant is known; addresses D-019), `user.created`/`role_changed`/`activated`/`deactivated`, `document.uploaded`/`acl_changed`/`deleted`, `document.ingested`, `document.ingest_failed` (error), `tenant.updated`. `/tenant` exposes and (admin) updates `audit_query_mode`. A test plants a canary string in a document and proves no audit row contains it. 258 tests green.

@@ -14,7 +14,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (3/8 tasks) |
+| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (4/8 tasks) |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
 
@@ -151,6 +151,18 @@ Uploaded files are processed by a background worker:
 The worker (`python -m app.worker`) claims jobs with `FOR UPDATE SKIP LOCKED` through a narrow database function, so several workers can run safely and a crashed worker's job is reclaimed after 10 minutes. Extraction and embedding happen outside any transaction; the chunks are then written while holding a share lock on the document, copying its ACL at that moment, so a permission change made during ingestion always reaches the new chunks. Unreadable or encrypted files fail immediately with a message the uploader can see; other errors retry up to 3 times with backoff. Extraction runs in a separate process with a time limit, a memory limit (Linux), and a cap on extracted text, so a crafted file (some PDFs take minutes to parse from a few kilobytes) cannot stall ingestion for other tenants; a job that keeps crashing the worker is failed after 3 attempts instead of being retried forever. A document becoming ready invalidates cached search results, so it is searchable immediately.
 
 Tests use a deterministic fake embedder; one test runs the real model (skip it offline with `VEYL_SKIP_MODEL_TESTS=1`).
+
+## LLM providers
+
+Answers come from any OpenAI-compatible chat API, configured in `.env` (never committed). All of these are free without a card:
+
+| Provider | `LLM_BASE_URL` | `LLM_MODEL` | Notes |
+|---|---|---|---|
+| Groq (default) | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` | Free key at console.groq.com |
+| Gemini (AI Studio) | `https://generativelanguage.googleapis.com/v1beta/openai/` | e.g. `gemini-2.5-flash` | Free tier may use data for product improvement |
+| Ollama (local) | `http://host.docker.internal:11434/v1` | any pulled model | Nothing leaves your machine; `LLM_API_KEY` can be empty |
+
+Only the model's answer text is used; providers that return separate reasoning have it ignored. If the provider fails or times out, the request fails with `503 llm_unavailable`: there is no fallback.
 
 ## Retrieval guarantees
 
