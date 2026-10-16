@@ -22,7 +22,7 @@ from sqlalchemy import (
     text,
     true,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, CITEXT, ENUM, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, CITEXT, ENUM, JSONB, UUID
 
 from app.authz.roles import Classification, Role
 
@@ -71,6 +71,7 @@ tenants = Table(
     Column("name", Text, nullable=False),
     Column("policy_version", BigInteger, nullable=False, server_default=text("1")),
     _created_at(),
+    Column("audit_query_mode", Text, nullable=False, server_default=text("'hash'")),
 )
 
 users = Table(
@@ -189,4 +190,82 @@ retrieval_cache = Table(
     ForeignKeyConstraint(
         ["tenant_id", "user_id"], ["users.tenant_id", "users.id"], ondelete="CASCADE"
     ),
+)
+
+msg_role = ENUM("user", "assistant", name="msg_role", create_type=False)
+audit_decision = ENUM("allow", "deny", "error", name="audit_decision", create_type=False)
+
+conversations = Table(
+    "conversations",
+    metadata,
+    _id(),
+    Column("tenant_id", UUID(as_uuid=True), nullable=False),
+    Column("user_id", UUID(as_uuid=True), nullable=False),
+    Column("title", Text, nullable=False),
+    _created_at(),
+    _updated_at(),
+    UniqueConstraint("tenant_id", "id"),
+    ForeignKeyConstraint(
+        ["tenant_id", "user_id"], ["users.tenant_id", "users.id"], ondelete="CASCADE"
+    ),
+)
+
+messages = Table(
+    "messages",
+    metadata,
+    _id(),
+    Column("tenant_id", UUID(as_uuid=True), nullable=False),
+    Column("conversation_id", UUID(as_uuid=True), nullable=False),
+    Column("role", msg_role, nullable=False),
+    Column("content", Text, nullable=False),
+    Column(
+        "cited_chunk_ids", ARRAY(UUID(as_uuid=True)), nullable=False, server_default=text("'{}'")
+    ),
+    Column(
+        "cited_document_ids",
+        ARRAY(UUID(as_uuid=True)),
+        nullable=False,
+        server_default=text("'{}'"),
+    ),
+    Column("trace_id", UUID(as_uuid=True), nullable=False),
+    _created_at(),
+    ForeignKeyConstraint(
+        ["tenant_id", "conversation_id"],
+        ["conversations.tenant_id", "conversations.id"],
+        ondelete="CASCADE",
+    ),
+)
+
+audit_events = Table(
+    "audit_events",
+    metadata,
+    _id(),
+    Column("tenant_id", UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False),
+    Column(
+        "occurred_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.clock_timestamp(),
+    ),
+    Column("actor_user_id", UUID(as_uuid=True), nullable=True),
+    Column("event_type", Text, nullable=False),
+    Column("decision", audit_decision, nullable=False, server_default=text("'allow'")),
+    Column("query_ref", Text, nullable=True),
+    Column("query_text", Text, nullable=True),
+    Column(
+        "retrieved_chunk_ids",
+        ARRAY(UUID(as_uuid=True)),
+        nullable=False,
+        server_default=text("'{}'"),
+    ),
+    Column(
+        "retrieved_document_ids",
+        ARRAY(UUID(as_uuid=True)),
+        nullable=False,
+        server_default=text("'{}'"),
+    ),
+    Column("result_count", Integer, nullable=True),
+    Column("trace_id", UUID(as_uuid=True), nullable=True),
+    Column("model", Text, nullable=True),
+    Column("details", JSONB, nullable=False, server_default=text("'{}'")),
 )

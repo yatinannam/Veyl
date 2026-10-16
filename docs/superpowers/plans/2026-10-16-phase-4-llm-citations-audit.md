@@ -336,8 +336,10 @@ UPGRADE = [
         details jsonb NOT NULL DEFAULT '{}'
     )
     """,
-    "CREATE INDEX audit_events_tenant_time_idx ON audit_events (tenant_id, occurred_at DESC, id DESC)",
-    "CREATE INDEX audit_events_actor_idx ON audit_events (tenant_id, actor_user_id, occurred_at DESC)",
+    "CREATE INDEX audit_events_tenant_time_idx ON audit_events "
+    "(tenant_id, occurred_at DESC, id DESC)",
+    "CREATE INDEX audit_events_actor_idx ON audit_events "
+    "(tenant_id, actor_user_id, occurred_at DESC)",
     "CREATE INDEX audit_events_documents_idx ON audit_events USING gin (retrieved_document_ids)",
     """
     CREATE FUNCTION audit_events_immutable() RETURNS trigger

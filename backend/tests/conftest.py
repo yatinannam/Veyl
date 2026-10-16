@@ -1,3 +1,4 @@
+import os
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -12,6 +13,9 @@ from testcontainers.community.postgres import PostgresContainer
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 INIT_DIR = BACKEND_DIR.parent / "docker" / "postgres" / "init"
+
+# Required setting; tests never load .env.
+os.environ.setdefault("AUDIT_HMAC_KEY", "test-audit-hmac-key-0123456789abcdef")
 
 OWNER_PASSWORD = "owner-test-pw"
 APP_PASSWORD = "app-test-pw"

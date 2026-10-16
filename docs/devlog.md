@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 1: schema and settings
+
+**Done** — migration 0005: `conversations`, `messages` (cited chunk/document ids, trace id), `audit_events` (namespaced event types, decision enum, ids not content, JSONB details) with forced RLS and insert/select-only grants; an `audit_events_immutable` trigger blocks UPDATE, DELETE, and TRUNCATE even for the owner; `tenants.audit_query_mode` (hash by default). Settings: LLM endpoint/model/key/timeout/max tokens, history turns, required `AUDIT_HMAC_KEY` (32+ chars), `RETRIEVAL_MIN_SCORE` default 0.5. Compose passes `AUDIT_HMAC_KEY` to api and worker. 246 tests green.
+**Next** — audit service and admin API (Task 2).
+
 ## 2026-10-16 — Phase 4 plan written; Groq key verified
 
 **Done** — user added a free Groq key to `.env` (git-ignored; verified by length and prefix only, never printed). A models-list request showed `llama-3.3-70b-versatile` is no longer offered; switched the default to `openai/gpt-oss-120b`, which answered a test question in 0.6 s with a correct `[S1]` citation (its separate `reasoning` field will be ignored). Measured bge-small similarity to pick `RETRIEVAL_MIN_SCORE=0.5` (relevant top scores 0.60-0.78, unrelated at most 0.45). Wrote the [Phase 4 plan](superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md): audit schema with an append-only trigger, audit service and admin API, audit of existing flows, OpenAI-compatible client, untrusted-source prompt builder and citation checker, retrieval re-check of every rule, `/query` with re-authorized history, CI smoke through an LLM stand-in.

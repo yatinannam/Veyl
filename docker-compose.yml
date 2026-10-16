@@ -49,6 +49,7 @@ services:
       - "*"
     environment:
       DATABASE_URL: postgresql+psycopg://veyl_app:${VEYL_APP_PASSWORD}@db:5432/veyl
+      AUDIT_HMAC_KEY: ${AUDIT_HMAC_KEY:?set AUDIT_HMAC_KEY in .env}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       UPLOAD_DIR: /data/uploads
@@ -71,6 +72,7 @@ services:
     command: ["python", "-m", "app.worker"]
     environment:
       DATABASE_URL: postgresql+psycopg://veyl_app:${VEYL_APP_PASSWORD}@db:5432/veyl
+      AUDIT_HMAC_KEY: ${AUDIT_HMAC_KEY:?set AUDIT_HMAC_KEY in .env}
       UPLOAD_DIR: /data/uploads
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
