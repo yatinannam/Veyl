@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     login_window_seconds: int = Field(default=900, ge=1)
     login_max_concurrent_hashes: int = Field(default=4, ge=1)
 
+    upload_dir: str = "/data/uploads"
+    max_upload_mb: int = Field(default=10, ge=1, le=100)
+    max_pdf_pages: int = Field(default=200, ge=1)
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_cache_dir: str | None = None
+    retrieval_top_k: int = Field(default=6, ge=1, le=50)
+    retrieval_min_score: float = Field(default=0.0, ge=-1.0, le=1.0)
+    retrieval_cache_ttl_seconds: int = Field(default=600, ge=0)
+    worker_poll_seconds: float = Field(default=2.0, gt=0)
+
     @property
     def cookie_secure(self) -> bool:
         return self.environment == "production"

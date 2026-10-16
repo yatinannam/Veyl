@@ -11,7 +11,7 @@ from tests.factories import create_session, create_tenant, create_user
 
 pytestmark = pytest.mark.integration
 
-DEFINER_FUNCTIONS_FOR_APP = {"auth_resolve_login", "auth_resolve_session"}
+DEFINER_FUNCTIONS_FOR_APP = {"auth_resolve_login", "auth_resolve_session", "ingestion_claim_job"}
 
 
 def _login_row(app_engine: Engine, slug: str, email: str) -> Any:

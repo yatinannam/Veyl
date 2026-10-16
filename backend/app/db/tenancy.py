@@ -2,7 +2,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, text
+from sqlalchemy import Connection, Engine, text, update
+
+from app.db.schema import tenants
 
 
 @contextmanager
@@ -20,3 +22,12 @@ def tenant_transaction(engine: Engine, tenant_id: UUID) -> Iterator[Connection]:
             {"tenant_id": str(tenant_id)},
         )
         yield conn
+
+
+def bump_policy_version(conn: Connection, tenant_id: UUID) -> None:
+    """Invalidate every cached retrieval result for the tenant (cache keys include it)."""
+    conn.execute(
+        update(tenants)
+        .where(tenants.c.id == tenant_id)
+        .values(policy_version=tenants.c.policy_version + 1)
+    )

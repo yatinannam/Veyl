@@ -3,13 +3,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Engine, func, insert, select, update
+from sqlalchemy import Connection, Engine, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.auth.passwords import hash_password
 from app.authz import Action, AuthContext, Role, authorize
 from app.db.schema import sessions, tenants, users
-from app.db.tenancy import tenant_transaction
+from app.db.tenancy import bump_policy_version, tenant_transaction
 from app.errors import Conflict, Forbidden, NotFound
 
 
@@ -32,6 +32,15 @@ def _record(row: Any) -> UserRecord:
         role=Role(row.role),
         is_active=row.is_active,
         created_at=row.created_at,
+    )
+
+
+def lock_tenant_membership(conn: Connection, tenant_id: UUID) -> None:
+    """Serialise membership changes per tenant. FOR NO KEY UPDATE does not conflict with
+    the KEY SHARE locks taken by foreign-key checks, so document and chunk inserts for the
+    same tenant are never blocked by it."""
+    conn.execute(
+        select(tenants.c.id).where(tenants.c.id == tenant_id).with_for_update(key_share=True)
     )
 
 
@@ -86,9 +95,7 @@ def update_user(
         values["is_active"] = is_active
 
     with tenant_transaction(engine, ctx.tenant_id) as conn:
-        # Serialise membership changes per tenant so concurrent demotions cannot
-        # leave a tenant without an admin.
-        conn.execute(select(tenants.c.id).where(tenants.c.id == ctx.tenant_id).with_for_update())
+        lock_tenant_membership(conn, ctx.tenant_id)
         row = conn.execute(
             update(users)
             .where(users.c.id == user_id, users.c.tenant_id == ctx.tenant_id)
@@ -108,11 +115,7 @@ def update_user(
         ).scalar_one()
         if active_admins == 0:
             raise Conflict("A tenant must keep at least one active admin.")
-        conn.execute(
-            update(tenants)
-            .where(tenants.c.id == ctx.tenant_id)
-            .values(policy_version=tenants.c.policy_version + 1)
-        )
+        bump_policy_version(conn, ctx.tenant_id)
         if is_active is False:
             conn.execute(
                 update(sessions)

@@ -860,9 +860,9 @@ def test_claim_reclaims_stale_running_jobs(owner_engine: Engine, app_engine: Eng
 def test_concurrent_claims_take_different_jobs(owner_engine: Engine, app_engine: Engine) -> None:
     drain_jobs(owner_engine)
     tenant_id, document_id = _pending_document(owner_engine)
-    _, other_document = _pending_document(owner_engine)
+    other_tenant, other_document = _pending_document(owner_engine)
     create_job(owner_engine, tenant_id, document_id)
-    create_job(owner_engine, tenant_id, other_document)
+    create_job(owner_engine, other_tenant, other_document)
     with app_engine.connect() as first, app_engine.connect() as second:
         with first.begin():
             a = _claim(first)
@@ -873,7 +873,7 @@ def test_concurrent_claims_take_different_jobs(owner_engine: Engine, app_engine:
     assert a.job_id != b.job_id
 ```
 
-Note: `_pending_document` for `other_document` creates it in a second tenant; that is fine because claiming is cross-tenant by design.
+Note: the second document lives in a second tenant; claiming is cross-tenant by design.
 
 - [ ] **Step 4: Run to verify failure**
 

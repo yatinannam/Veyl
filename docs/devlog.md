@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 1: documents schema and job claiming
+
+**Done** — migration 0003: `classification`/`doc_status`/`job_status` enums; `documents` (ACL, `acl_version`, status, soft delete), `document_chunks` (`vector(384)`, HNSW cosine index, ACL copy, GIN on role/user arrays), `ingestion_jobs`, `retrieval_cache`; all with forced RLS, owner policy, column-level grants, composite tenant FKs. `ingestion_claim_job(interval)` SECURITY DEFINER with `FOR UPDATE SKIP LOCKED` and stale-job reclaim. Membership lock is now `FOR NO KEY UPDATE` (Phase 2 review minor 2; mutation check: `FOR UPDATE` makes the new test fail). New settings for uploads, embeddings, retrieval, worker. Deps: pgvector, fastembed, pypdf, python-multipart. 149 tests green.
+**Next** — SQL read filters with an equivalence proof (Task 2).
+
 ## 2026-10-16 — Phase 3 plan written
 
 **Done** — [Phase 3 plan](superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md), 8 tasks: migration 0003 (documents, chunks with `vector(384)` and denormalised ACL, ingestion jobs, retrieval cache, job-claim function); SQL read filters proven equal to the Python policy over an exhaustive ACL universe; local bge-small embeddings, PDF/TXT/MD extraction, chunker; server-keyed storage, upload validation, streamed body limit; documents API; ingestion worker with a race-safe ACL copy; permission-filtered retrieval with an ids-only cache and a Python re-check; containers, end-to-end ingestion smoke in CI, docs.

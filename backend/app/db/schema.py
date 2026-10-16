@@ -3,13 +3,16 @@
 
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
+    Integer,
     LargeBinary,
     MetaData,
     Table,
@@ -19,13 +22,18 @@ from sqlalchemy import (
     text,
     true,
 )
-from sqlalchemy.dialects.postgresql import CITEXT, ENUM, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, CITEXT, ENUM, UUID
 
-from app.authz import Role
+from app.authz.roles import Classification, Role
+
+EMBEDDING_DIM = 384
 
 metadata = MetaData()
 
 user_role = ENUM(*[r.value for r in Role], name="user_role", create_type=False)
+classification = ENUM(*[c.value for c in Classification], name="classification", create_type=False)
+doc_status = ENUM("pending", "processing", "ready", "failed", name="doc_status", create_type=False)
+job_status = ENUM("queued", "running", "done", "failed", name="job_status", create_type=False)
 
 
 def _id() -> Column[Any]:
@@ -36,6 +44,23 @@ def _id() -> Column[Any]:
 
 def _created_at() -> Column[Any]:
     return Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+def _updated_at() -> Column[Any]:
+    return Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+def _acl_columns() -> list[Column[Any]]:
+    return [
+        Column("classification", classification, nullable=False),
+        Column("allowed_roles", ARRAY(Text), nullable=False, server_default=text("'{}'")),
+        Column(
+            "allowed_user_ids",
+            ARRAY(UUID(as_uuid=True)),
+            nullable=False,
+            server_default=text("'{}'"),
+        ),
+    ]
 
 
 tenants = Table(
@@ -77,6 +102,90 @@ sessions = Table(
     _created_at(),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("revoked_at", DateTime(timezone=True), nullable=True),
+    ForeignKeyConstraint(
+        ["tenant_id", "user_id"], ["users.tenant_id", "users.id"], ondelete="CASCADE"
+    ),
+)
+
+documents = Table(
+    "documents",
+    metadata,
+    _id(),
+    Column(
+        "tenant_id",
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("uploaded_by", UUID(as_uuid=True), nullable=False),
+    Column("title", Text, nullable=False),
+    Column("original_filename", Text, nullable=False),
+    Column("mime_type", Text, nullable=False),
+    Column("size_bytes", Integer, nullable=False),
+    Column("sha256", Text, nullable=False),
+    Column("storage_key", Text, nullable=False),
+    *_acl_columns(),
+    Column("acl_version", Integer, nullable=False, server_default=text("1")),
+    Column("status", doc_status, nullable=False, server_default=text("'pending'")),
+    Column("error", Text, nullable=True),
+    _created_at(),
+    _updated_at(),
+    Column("deleted_at", DateTime(timezone=True), nullable=True),
+    UniqueConstraint("tenant_id", "id"),
+    ForeignKeyConstraint(["tenant_id", "uploaded_by"], ["users.tenant_id", "users.id"]),
+)
+
+document_chunks = Table(
+    "document_chunks",
+    metadata,
+    _id(),
+    Column("tenant_id", UUID(as_uuid=True), nullable=False),
+    Column("document_id", UUID(as_uuid=True), nullable=False),
+    Column("chunk_index", Integer, nullable=False),
+    Column("content", Text, nullable=False),
+    Column("embedding", Vector(EMBEDDING_DIM), nullable=False),
+    *_acl_columns(),
+    Column("acl_version", Integer, nullable=False),
+    _created_at(),
+    UniqueConstraint("document_id", "chunk_index"),
+    ForeignKeyConstraint(
+        ["tenant_id", "document_id"],
+        ["documents.tenant_id", "documents.id"],
+        ondelete="CASCADE",
+    ),
+)
+
+ingestion_jobs = Table(
+    "ingestion_jobs",
+    metadata,
+    _id(),
+    Column("tenant_id", UUID(as_uuid=True), nullable=False),
+    Column("document_id", UUID(as_uuid=True), nullable=False),
+    Column("status", job_status, nullable=False, server_default=text("'queued'")),
+    Column("attempts", Integer, nullable=False, server_default=text("0")),
+    Column("run_after", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("locked_at", DateTime(timezone=True), nullable=True),
+    Column("last_error", Text, nullable=True),
+    _created_at(),
+    _updated_at(),
+    ForeignKeyConstraint(
+        ["tenant_id", "document_id"],
+        ["documents.tenant_id", "documents.id"],
+        ondelete="CASCADE",
+    ),
+)
+
+retrieval_cache = Table(
+    "retrieval_cache",
+    metadata,
+    Column("cache_key", LargeBinary, primary_key=True),
+    Column("tenant_id", UUID(as_uuid=True), nullable=False),
+    Column("user_id", UUID(as_uuid=True), nullable=False),
+    Column("policy_version", BigInteger, nullable=False),
+    Column("chunk_ids", ARRAY(UUID(as_uuid=True)), nullable=False),
+    Column("scores", ARRAY(Float), nullable=False),
+    _created_at(),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
     ForeignKeyConstraint(
         ["tenant_id", "user_id"], ["users.tenant_id", "users.id"], ondelete="CASCADE"
     ),

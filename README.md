@@ -13,7 +13,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
-| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (0/8 tasks) |
+| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (1/8 tasks) |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
@@ -118,6 +118,8 @@ A document chunk is readable only if it belongs to the caller's tenant, its clas
 **Sessions:** login sets `veyl_session` (opaque token, HttpOnly, SameSite=Lax, Secure in production) and `veyl_csrf` (readable by the frontend). Every state-changing request must echo the CSRF cookie in an `X-CSRF-Token` header. Each request re-resolves the session in the database, so revocation, deactivation, and role changes take effect immediately. Login failures return one generic error whatever the cause; repeated failures lock the account temporarily.
 
 **User management guards:** admins cannot change their own role or status, a tenant always keeps at least one active admin (enforced under a row lock, so concurrent demotions cannot race past it), deactivating a user revokes their sessions, and every role or status change bumps the tenant's `policy_version` (used later to invalidate cached retrieval results). Identifiers from another tenant return 404.
+
+**Documents and chunks:** each document carries its access-control list (`classification`, `allowed_roles`, `allowed_user_ids`) and an `acl_version`. Every chunk stores a copy of that ACL next to its 384-dimensional embedding (pgvector, HNSW index), so permission filtering happens inside the vector query. Composite foreign keys make it impossible for a chunk, job, or cache row to point at another tenant's document or user, and unknown role names are rejected by a database check.
 
 **Credentials:** passwords are hashed with argon2id (minimum 12 characters); unknown accounts still pay the hashing cost so timing does not reveal which accounts exist. Session tokens are random 256-bit values stored only as SHA-256 digests. Failed logins are rate-limited per account and, more loosely, per client IP (the client IP comes from the `edge` proxy and cannot be forged; a smoke test proves it). At most four password checks run at once; excess attempts get 429 instead of tying up the server.
 
