@@ -186,13 +186,13 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed), any Ope
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Repo setup: tooling, Docker Compose, CI | 🚧 in progress |
-| 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | ✅ done |
-| 2 | Schema, RLS, auth, RBAC | ⏳ |
-| 3 | Ingestion, embeddings, filtered retrieval | ⏳ |
-| 4 | LLM, citations, conversations, audit | ⏳ |
-| 5 | Dashboard | ⏳ |
-| 6 | Security test suite, demo, docs | ⏳ |
+| 0 | Repo setup: tooling, Docker Compose, CI | In progress |
+| 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
+| 2 | Schema, RLS, auth, RBAC | Planned |
+| 3 | Ingestion, embeddings, filtered retrieval | Planned |
+| 4 | LLM, citations, conversations, audit | Planned |
+| 5 | Dashboard | Planned |
+| 6 | Security test suite, demo, docs | Planned |
 
 ## Documentation
 
@@ -1253,7 +1253,7 @@ Expected: all three jobs green. If red, read the failing step log (`gh run view 
 
 - [ ] **Step 2: Spec §13** — Phase 0 "Done when" becomes: "`docker compose up` starts db, migrate, api, web with health endpoints; CI green (worker added in Phase 3)."
 
-- [ ] **Step 3: README** — Phase 0 row ✅; repository layout section; links to plan. **docs/README.md** — add the plan link. **Devlog** — Phase 0 summary + "Next: Phase 2 plan (schema, RLS, auth, RBAC)".
+- [ ] **Step 3: README** — Phase 0 row Done; repository layout section; links to plan. **docs/README.md** — add the plan link. **Devlog** — Phase 0 summary + "Next: Phase 2 plan (schema, RLS, auth, RBAC)".
 
 - [ ] **Step 4: Commit, push, confirm CI**
 

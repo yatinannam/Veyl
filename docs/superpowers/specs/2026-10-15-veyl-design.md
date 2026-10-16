@@ -133,15 +133,15 @@ Classification order: `public < internal < confidential < restricted`.
 
 | Action | member | manager | admin |
 |---|---|---|---|
-| Query (RAG) over readable docs | ✓ | ✓ | ✓ |
-| List / view readable documents | ✓ | ✓ | ✓ |
-| Upload document | — | ✓ (classification ≤ confidential) | ✓ |
-| Change permissions / delete document | — | own uploads only, classification ≤ confidential | ✓ any in tenant |
-| Manage users & roles | — | — | ✓ (cannot demote/deactivate self) |
-| View tenant info | ✓ | ✓ | ✓ |
-| Edit tenant settings | — | — | ✓ |
-| Read audit log | — | — | ✓ (own tenant) |
-| Read own conversations | ✓ | ✓ | ✓ |
+| Query (RAG) over readable docs | Yes | Yes | Yes |
+| List / view readable documents | Yes | Yes | Yes |
+| Upload document | No | Yes (classification ≤ confidential) | Yes |
+| Change permissions / delete document | No | own uploads only, classification ≤ confidential | Yes any in tenant |
+| Manage users & roles | No | No | Yes (cannot demote/deactivate self) |
+| View tenant info | Yes | Yes | Yes |
+| Edit tenant settings | No | No | Yes |
+| Read audit log | No | No | Yes (own tenant) |
+| Read own conversations | Yes | Yes | Yes |
 | Read others' conversations | — | — | — |
 
 ### 4.3 Chunk read rule (the core invariant)

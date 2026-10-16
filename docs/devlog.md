@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — No-emoji rule
+
+**Done** — new project rule from the user: no emojis anywhere. Replaced status icons in README and the Phase 0 plan with words, and check marks in the spec's permission matrix with Yes/No. Added `backend/tests/unit/test_no_emojis.py`, which scans every tracked file (lockfiles and binaries excluded) and fails CI on any emoji, pictograph, or dingbat; verified it catches a planted emoji. 16 tests green.
+**Next** — Phase 2 plan: schema, RLS, auth, RBAC.
+
 ## 2026-10-15 — Phase 0 review: fixes and deferred items
 
 **Review** — independent whole-phase review: no Critical, 2 Important, 10 Minor.
