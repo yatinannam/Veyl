@@ -2,6 +2,14 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2 complete: schema, RLS, auth, RBAC
+
+**Summary** — tenants/users/sessions behind forced row-level security with column-level grants; two SECURITY DEFINER lookups (login, session) as the only cross-tenant reads; central `authz` policy with property tests; argon2id + hashed session tokens + per-account/per-IP lockout; `/auth/*`, `/tenant`, `/users` with CSRF double-submit, generic login errors, no self-escalation, one-admin invariant under a row lock; operator CLI for tenant provisioning. 138 backend tests (unit, integration, security). Compose API now trusts forwarded headers behind the local proxy; CI smoke test provisions a tenant and logs in through the Next.js proxy. Verified locally end to end, including CSRF-protected logout through the proxy. Decisions D-015 to D-021; spec sections 5.1, 7, 11 updated.
+
+**Still deferred from the Phase 0 review** — readyz statement timeout; LOG_LEVEL not applied; `.env*` in `.dockerignore`; Compose cap_drop/no-new-privileges/read_only; PUBLIC CONNECT on the `postgres` DB; CI actions SHA pinning and timeouts; automated "api has no owner creds" check; prettier and pytest-cov.
+
+**Next** — whole-phase review, then the Phase 3 plan (ingestion, embeddings, filtered retrieval).
+
 ## 2026-10-16 — Phase 2, Task 7: tenant and user management
 
 **Done** — `/tenant` (GET, PATCH name) and `/users` (GET, POST, PATCH role/is_active), admin-only via `authorize`, CSRF on writes, `extra=forbid` bodies. Guards: no self role/status change; at least one active admin kept under a tenant row lock (mutation check: removing the lock makes the concurrency test fail 3/3); `policy_version` bump on every change; deactivation revokes sessions; cross-tenant ids 404. Security tests: non-admins blocked (T10), demotion effective next request, forged tenant ids in body/header/query ignored or rejected (T4), cross-tenant modification 404 (T1). 138 tests green.

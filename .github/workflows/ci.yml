@@ -57,6 +57,14 @@ jobs:
         run: curl -fsS --retry 30 --retry-delay 2 --retry-all-errors http://127.0.0.1:8000/api/v1/readyz
       - name: Web proxies API
         run: curl -fsS --retry 30 --retry-delay 2 --retry-all-errors http://127.0.0.1:3000/api/v1/healthz
+      - name: Provision a tenant
+        run: >
+          docker compose run --rm -e VEYL_ADMIN_PASSWORD=smoke-test-password migrate
+          python -m app.cli provision-tenant --slug smoke --name "Smoke Test" --admin-email admin@smoke.test
+      - name: Log in through the web proxy
+        run: |
+          curl -fsS -c jar.txt -H 'Content-Type: application/json'             -d '{"tenant_slug":"smoke","email":"admin@smoke.test","password":"smoke-test-password"}'             http://127.0.0.1:3000/api/v1/auth/login
+          curl -fsS -b jar.txt http://127.0.0.1:3000/api/v1/auth/me
       - name: Logs on failure
         if: failure()
         run: docker compose logs

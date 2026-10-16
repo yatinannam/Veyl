@@ -12,8 +12,8 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | In progress (7/8 tasks) |
-| 3 | Ingestion, embeddings, filtered retrieval | Planned |
+| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
+| 3 | Ingestion, embeddings, filtered retrieval | Next |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
@@ -40,6 +40,13 @@ Tenants are created by an operator with the database owner role, never through t
 
 ```bash
 docker compose run --rm -e VEYL_ADMIN_PASSWORD='choose-a-long-password' migrate   python -m app.cli provision-tenant --slug acme --name "Acme Corp" --admin-email alice@acme.test
+```
+
+Then log in (through the web proxy, as the browser would):
+
+```bash
+curl -c jar.txt -H 'Content-Type: application/json'   -d '{"tenant_slug":"acme","email":"alice@acme.test","password":"choose-a-long-password"}'   http://127.0.0.1:3000/api/v1/auth/login
+curl -b jar.txt http://127.0.0.1:3000/api/v1/auth/me
 ```
 
 All ports bind to `127.0.0.1` only. Reset everything (including the database volume) with `docker compose down -v`.

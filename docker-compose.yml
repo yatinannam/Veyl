@@ -33,6 +33,20 @@ services:
 
   api:
     build: ./backend
+    command:
+      - uvicorn
+      - app.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      # Trust X-Forwarded-For so login rate limiting sees the browser's IP behind the
+      # Next.js proxy. Safe only because this port binds to 127.0.0.1 and the Compose
+      # network (spec section 11).
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "*"
     environment:
       DATABASE_URL: postgresql+psycopg://veyl_app:${VEYL_APP_PASSWORD}@db:5432/veyl
       ENVIRONMENT: ${ENVIRONMENT:-development}

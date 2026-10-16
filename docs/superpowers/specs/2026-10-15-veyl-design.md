@@ -178,12 +178,15 @@ A property-based test (Hypothesis) generates random contexts and ACLs and assert
 - `veyl_app` — used by api and worker. `NOSUPERUSER NOBYPASSRLS`, not table owner, `CONNECT` only on the database (no `TEMPORARY`, so it cannot create `pg_temp` objects that shadow tables inside definer functions). All tenant tables have `ENABLE` **and** `FORCE ROW LEVEL SECURITY`.
 - Functions created by `veyl_owner` are **not** executable by `PUBLIC` by default (global default-privilege revoke); each entry point gets an explicit `GRANT EXECUTE … TO veyl_app`. Every `SECURITY DEFINER` function sets `search_path = public, pg_temp`.
 
-RLS policy on every tenant-scoped table:
+RLS policies on every tenant-scoped table (two per table):
 ```sql
-USING      (tenant_id = current_setting('app.tenant_id', true)::uuid)
-WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid)
+-- *_tenant_isolation: FOR ALL TO veyl_app
+USING      (tenant_id = app_current_tenant())
+WITH CHECK (tenant_id = app_current_tenant())
+-- *_owner_all: FOR ALL TO veyl_owner USING (true) WITH CHECK (true)
+--   (migrations and SECURITY DEFINER lookups run as the owner; FORCE RLS would otherwise hide all rows from them)
 ```
-If `app.tenant_id` is unset, `current_setting(..., true)` returns NULL → comparison is NULL → **zero rows** (fail closed).
+`app_current_tenant()` is `NULLIF(current_setting('app.tenant_id', true), '')::uuid`. If the setting is unset (NULL) or was used earlier in the session and now reads back as `''`, the comparison is NULL → **zero rows** (fail closed). A malformed value raises an error (also fail closed).
 
 Narrow cross-tenant entry points, all `SECURITY DEFINER`, `search_path` pinned, `EXECUTE` granted to `veyl_app` only:
 - `auth_resolve_login(tenant_slug, email)` → user id, tenant id, password hash, role, active
@@ -412,7 +415,7 @@ Details:
 
 ## 7. API contract (prefix `/api/v1`)
 
-All bodies JSON unless noted. Unsafe methods require the `X-CSRF-Token` header matching the `veyl_csrf` cookie. Errors use one shape: `{"error": {"code": "forbidden", "message": "…", "trace_id": "…"}}`.
+All bodies JSON unless noted. Unsafe methods require the `X-CSRF-Token` header matching the `veyl_csrf` cookie, except `POST /auth/login` (no CSRF cookie exists yet; it accepts only JSON, the API sends no CORS headers, and cookies are SameSite=Lax, so a cross-site page cannot submit it). Errors use one shape: `{"error": {"code": "forbidden", "message": "…", "trace_id": "…"}}`.
 
 | Method & path | Who | Purpose |
 |---|---|---|
@@ -502,6 +505,7 @@ Server authorization is authoritative; the UI uses `/auth/me` permissions only t
 7. **No encryption at rest** beyond whatever the host disk provides; uploads volume is plaintext.
 8. **Embeddings** can leak approximate content if exfiltrated; they are tenant-scoped and RLS-protected like chunks.
 9. Single-node, local deployment; no HA.
+10. **Forwarded headers are trusted** (`uvicorn --forwarded-allow-ips '*'`) so login rate limiting sees the browser IP behind the Next.js proxy. Safe only while the API port is bound to 127.0.0.1 and the Compose network; a deployment exposing the API directly must restrict this to the proxy's address.
 
 ---
 
