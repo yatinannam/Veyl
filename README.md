@@ -14,7 +14,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (4/8 tasks) |
+| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (5/8 tasks) |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
 
@@ -163,6 +163,12 @@ Answers come from any OpenAI-compatible chat API, configured in `.env` (never co
 | Ollama (local) | `http://host.docker.internal:11434/v1` | any pulled model | Nothing leaves your machine; `LLM_API_KEY` can be empty |
 
 Only the model's answer text is used; providers that return separate reasoning have it ignored. If the provider fails or times out, the request fails with `503 llm_unavailable`: there is no fallback.
+
+## Prompt injection posture
+
+Retrieved text is treated as untrusted data. Each chunk is wrapped in a labelled `<source>` block, any `<source`/`</source` sequence inside document text or titles is neutralised so it cannot open or close a block, and the system prompt tells the model that instructions inside sources must be ignored. The model has no tools. Most importantly, access control never depends on any of this: retrieval and authorization finish before the model sees anything, so a malicious document can at most distort an answer built from content the user could already read.
+
+Citations are checked on the server: only `[S#]` labels that were actually supplied survive (duplicates collapsed, unknown labels removed from the text), and the citation list is built from the authorized chunks, never from the model's text.
 
 ## Retrieval guarantees
 

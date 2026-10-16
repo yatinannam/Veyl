@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4, Task 5: prompt and citations
+
+**Done** — `app/llm/prompt.py`: system prompt (sources are untrusted data; cite with supplied labels; say when not found), labelled `<source>` blocks with neutralised delimiters in content and titles, history between system and question. `app/llm/citations.py`: keeps only supplied labels (case-insensitive, deduplicated, ordered) and strips unknown markers. Mutation check: disabling neutralisation fails 2 tests. 276 tests green.
+**Next** — retrieval hardening (Task 6).
+
 ## 2026-10-16 — Phase 4, Task 4: LLM client
 
 **Done** — `app/llm/client.py`: `OpenAICompatibleLLM` over stdlib urllib (no new dependency): http(s) URLs only, bearer key only when set, temperature 0.1, bounded response size, `message.content` only (provider `reasoning` ignored); HTTP errors, timeouts, unreachable hosts, invalid JSON, and unexpected shapes all raise `LLMError`. Tested against a real local HTTP server imitating a provider (success, no-key, 401, garbage, wrong shape, slow, unreachable, bad schemes). `RecordingLLM` test fake records every prompt. 268 tests green.
