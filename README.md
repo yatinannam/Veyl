@@ -13,7 +13,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
-| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (4/8 tasks) |
+| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (5/8 tasks) |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
@@ -84,6 +84,11 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | `GET /api/v1/users` | List users in your tenant (admin) |
 | `POST /api/v1/users` | Create a user `{email, password, role}` (admin) |
 | `PATCH /api/v1/users/{id}` | Change role and/or active status (admin; not yourself) |
+| `POST /api/v1/documents` | Upload (multipart: `file`, `title`, `classification`, `allowed_roles`, `allowed_user_ids`); manager or admin, within clearance → 202 |
+| `GET /api/v1/documents` | Documents you can read (ACL shown only to those who can manage) |
+| `GET /api/v1/documents/{id}` | One readable document (404 otherwise) |
+| `PUT /api/v1/documents/{id}/permissions` | Change classification and grants; rewrites every chunk's ACL in the same transaction |
+| `DELETE /api/v1/documents/{id}` | Soft delete; removes chunks and the stored file |
 
 **Errors** share one envelope, `{"error": {"code", "message", "trace_id"}}`, and every response carries an `X-Trace-Id` header. Validation errors never echo submitted values; a database outage returns `503 service_unavailable` (fail closed). The database URL is a secret value and never appears in logs or reprs.
 

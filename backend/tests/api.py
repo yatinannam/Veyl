@@ -1,4 +1,6 @@
+from collections.abc import Iterable
 from typing import Any
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 
@@ -26,3 +28,29 @@ def csrf(client: TestClient) -> dict[str, str]:
 
 def set_cookies(response: Any) -> list[str]:
     return [v for k, v in response.headers.multi_items() if k.lower() == "set-cookie"]
+
+
+def upload(
+    client: TestClient,
+    filename: str,
+    data: bytes,
+    *,
+    title: str = "Doc",
+    classification: str = "internal",
+    roles: Iterable[str] = (),
+    user_ids: Iterable[UUID] = (),
+    extra: dict[str, str] | None = None,
+) -> Any:
+    form: dict[str, Any] = {
+        "title": title,
+        "classification": classification,
+        "allowed_roles": list(roles),
+        "allowed_user_ids": [str(u) for u in user_ids],
+        **(extra or {}),
+    }
+    return client.post(
+        f"{API}/documents",
+        files={"file": (filename, data, "application/octet-stream")},
+        data=form,
+        headers=csrf(client),
+    )

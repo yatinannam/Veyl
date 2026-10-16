@@ -9,11 +9,15 @@ from app.auth import router as auth_router
 from app.auth.ratelimit import LoginLimiters
 from app.config import Settings
 from app.db.engine import create_db_engine
+from app.documents import router as documents_router
+from app.documents.limits import BodySizeLimit
+from app.documents.storage import LocalStorage
 from app.errors import register_error_handlers
 from app.tenants import router as tenants_router
 from app.users import router as users_router
 
 API_PREFIX = "/api/v1"
+MULTIPART_OVERHEAD_BYTES = 64 * 1024
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -42,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         window_seconds=settings.login_window_seconds,
         max_concurrent_hashes=settings.login_max_concurrent_hashes,
     )
+    app.state.storage = LocalStorage(settings.upload_dir)
     register_error_handlers(app)
 
     @app.middleware("http")
@@ -55,8 +60,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["X-Trace-Id"] = trace_id
         return response
 
+    app.add_middleware(
+        BodySizeLimit,
+        max_bytes=settings.max_upload_mb * 1024 * 1024 + MULTIPART_OVERHEAD_BYTES,
+        path_prefix=f"{API_PREFIX}/documents",
+    )
+
     app.include_router(health.router, prefix=API_PREFIX)
     app.include_router(auth_router.router, prefix=API_PREFIX)
     app.include_router(tenants_router.router, prefix=API_PREFIX)
     app.include_router(users_router.router, prefix=API_PREFIX)
+    app.include_router(documents_router.router, prefix=API_PREFIX)
     return app

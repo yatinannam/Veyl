@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 5: documents API
+
+**Done** — `app/documents/service.py` + router: upload (authorize before storing; uploader always in `allowed_user_ids`; grants only to users in the same tenant; file removed if the DB transaction fails; job queued in the same transaction), list/get via `document_read_filter` (404 for unreadable or foreign ids), permission change (spec 5.4: document ACL + every chunk ACL + `acl_version` + tenant `policy_version` in one transaction under `FOR NO KEY UPDATE`; managers limited to their own uploads and their clearance, before and after), delete (soft delete, chunks and file removed, policy bump). ACL fields returned only to callers who can manage. Body-size middleware mounted on `/documents`. Tests cover roles/clearance on upload, cross-tenant grants, ACL hiding, 404s, chunk ACL rewrite, manager limits, delete, oversize (no file, no row), disallowed types, hostile filenames, forged tenant fields. 209 tests green.
+**Next** — ingestion worker (Task 6).
+
 ## 2026-10-16 — Phase 3, Task 4: storage and upload hardening
 
 **Done** — `LocalStorage` (keys must be server-generated `uuid/uuid`; atomic write), `validate_upload` (extension allowlist + content sniff, UTF-8/NUL checks, size, SHA-256, safe display basename), `BodySizeLimit` pure ASGI middleware (rejects by declared length or while streaming; replaces whatever the framework answers once the limit is crossed; mutation check: removing the byte count fails the chunked-upload test). 191 tests green.
