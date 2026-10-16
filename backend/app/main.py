@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 
 from app import health
+from app.auth import router as auth_router
+from app.auth.ratelimit import LoginLimiters
 from app.config import Settings
 from app.db.engine import create_db_engine
 from app.errors import register_error_handlers
@@ -33,6 +35,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.state.settings = settings
+    app.state.login_limiters = LoginLimiters.create(
+        max_failures=settings.login_max_failures, window_seconds=settings.login_window_seconds
+    )
     register_error_handlers(app)
 
     @app.middleware("http")
@@ -47,4 +52,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     app.include_router(health.router, prefix=API_PREFIX)
+    app.include_router(auth_router.router, prefix=API_PREFIX)
     return app

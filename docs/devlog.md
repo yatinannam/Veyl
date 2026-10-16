@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2, Task 6: authentication API
+
+**Done** — `app/auth/service.py` (login with normalised slug/email, dummy-hash timing equaliser, per-account + per-IP lockout, session expiry from the DB clock; session resolution via `auth_resolve_session`; logout revokes), `app/auth/deps.py` (`CurrentUser` from the cookie only; CSRF double-submit compared as bytes so non-ASCII headers give 403, not 500), `app/auth/router.py` (`/auth/login`, `/auth/logout`, `/auth/me`). Security tests: cookie flags (Secure in production), token stored only as SHA-256, indistinguishable login failures, CSRF required, lockout, oversized password rejected before hashing, no CORS, missing/garbage/expired/revoked sessions and deactivated users denied, DB outage gives 503. 121 tests green.
+**Next** — tenant and user management API (Task 7).
+
 ## 2026-10-16 — Phase 2, Task 5: auth lookups and provisioning
 
 **Done** — migration 0002: `auth_resolve_login(slug, email)` and `auth_resolve_session(token_hash)`, both SECURITY DEFINER with `search_path = public, pg_temp`, EXECUTE revoked from PUBLIC and granted only to `veyl_app`. Session lookup returns only unexpired, unrevoked sessions of active users. `app/provisioning.py` + `python -m app.cli provision-tenant` (owner URL; password from `VEYL_ADMIN_PASSWORD`, never argv). Guard tests: every definer function pins search_path; the app role can execute exactly the two intended definer functions. 99 tests green.
