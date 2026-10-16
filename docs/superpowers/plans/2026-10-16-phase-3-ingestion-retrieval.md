@@ -476,7 +476,7 @@ from datetime import timedelta
 from functools import cache
 from uuid import UUID
 
-from sqlalchemy import Engine, func, insert, select, update
+from sqlalchemy import Engine, create_engine, event, func, insert, select, update
 
 from app.auth.passwords import hash_password
 from app.auth.tokens import hash_token, new_session_token
@@ -3295,6 +3295,7 @@ git push origin main
 7 (cache isolation); T14 (fail closed); plus the Python re-check as a second layer."""
 
 from datetime import timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -3305,6 +3306,7 @@ from app.db.schema import document_chunks, documents, retrieval_cache, tenants
 from app.documents import service as documents_service
 from app.retrieval import search as search_module
 from app.retrieval.search import AuthorizationMismatch, RetrievedChunk, cache_key, retrieve
+from tests.conftest import DatabaseUrls
 from tests.factories import add_chunks, create_document, create_tenant_with_admin, create_user
 from tests.fakes import FakeEmbedder
 
@@ -3459,15 +3461,45 @@ def test_embedding_failure_fails_closed_without_fallback(owner_engine: Engine, a
     assert rows == 0
 
 
-def test_small_tenant_keeps_recall_next_to_a_large_tenant(owner_engine: Engine, app_engine: Engine, embedder: FakeEmbedder) -> None:
+def test_small_tenant_keeps_recall_next_to_a_large_tenant(
+    owner_engine: Engine, app_engine: Engine, embedder: FakeEmbedder
+) -> None:
     big = create_tenant_with_admin(owner_engine)
     small = create_tenant_with_admin(owner_engine)
-    texts = [f"quarterly logistics report {i}" for i in range(300)]
+    query = "quarterly logistics report"
+    texts = [query] * 300
     document_id = create_document(owner_engine, big.tenant_id, big.admin_id)
     add_chunks(owner_engine, document_id, texts, embedder.embed_documents(texts))
-    _, mine = _doc(owner_engine, embedder, small.tenant_id, small.admin_id, "quarterly logistics report")
-    results = _search(app_engine, embedder, _ctx(small.admin_id, small.tenant_id, Role.ADMIN), "quarterly logistics report", top_k=3)
+    _, mine = _doc(owner_engine, embedder, small.tenant_id, small.admin_id, "quarterly logistics report for the small office")
+    results = _search(app_engine, embedder, _ctx(small.admin_id, small.tenant_id, Role.ADMIN), query, top_k=3)
     assert _ids(results) == set(mine)
+
+
+def test_retrieval_enables_iterative_index_scans_before_searching(
+    owner_engine: Engine, database_urls: DatabaseUrls, embedder: FakeEmbedder
+) -> None:
+    """For large tenants the planner uses the HNSW index, and ACL filters apply to its
+    candidates afterwards. Iterative scans (pgvector >= 0.8) keep searching when early
+    candidates are filtered out. HNSW is approximate, so recall under heavy filtering cannot
+    be asserted deterministically; this asserts the setting is applied, in the retrieval
+    transaction, before the vector query. Small tenants are searched exactly through the
+    tenant btree index (see the test above)."""
+    t = create_tenant_with_admin(owner_engine)
+    _doc(owner_engine, embedder, t.tenant_id, t.admin_id, "expense report rules")
+    engine = create_engine(database_urls.app)
+    statements: list[str] = []
+
+    def record(conn: Any, cursor: Any, statement: str, *args: Any) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        _search(engine, embedder, _ctx(t.admin_id, t.tenant_id, Role.ADMIN), "expense report rules")
+    finally:
+        engine.dispose()
+    iterative = next(i for i, s in enumerate(statements) if "hnsw.iterative_scan = relaxed_order" in s)
+    vector_query = next(i for i, s in enumerate(statements) if "<=>" in s)
+    assert iterative < vector_query
 
 
 def test_results_are_ordered_by_score(owner_engine: Engine, app_engine: Engine, embedder: FakeEmbedder) -> None:

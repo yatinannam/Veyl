@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 3, Task 7: filtered retrieval and cache
+
+**Done** — `app/retrieval/search.py`: one tenant transaction reads `policy_version`, the cache (chunk ids only, keyed by tenant/user/policy_version/model/normalised query), and runs the pgvector search with `chunk_read_filter` inside the query; cache hits are re-fetched through the same filter; every row is re-checked with `can_read_chunk` and any mismatch raises `AuthorizationMismatch`. Security tests for brief items 1, 2, 6, 7 plus forged cache rows, permission-change invalidation, Python re-check, and fail-closed embedding errors. Mutation checks: removing the SQL filter on cache hits fails the forged-cache test; removing the iterative-scan setting fails its test.
+**Finding** — EXPLAIN showed the planner pre-filters small tenants through the tenant btree index (exact search). A behavioural recall test for large, heavily filtered tenants was flaky because HNSW is approximate, so it was replaced by a deterministic test that the iterative-scan setting is applied before the vector query; recall in that case is documented as best-effort. 229 tests green.
+**Next** — containers, end-to-end ingestion smoke, docs, review (Task 8).
+
 ## 2026-10-16 — Phase 3, Task 6: ingestion worker
 
 **Done** — `app/ingestion/pipeline.py`: `claim_job` (definer function), `Ingestor.prepare` (marks processing; extract/chunk/embed outside the transaction), `persist` (FOR SHARE on the document, replace chunks with the current ACL and `acl_version`, mark ready), `fail` (extraction errors are permanent with a safe message; others retry with backoff up to 3 attempts, then fail with a generic message), `run_once`. `app/worker.py`: loop with SIGTERM/SIGINT handling and DB-outage tolerance. Tests: text and PDF ingestion with ACL copies, encrypted PDF fails permanently, retries then failure, permission change between prepare and persist reaches the chunks, deleted documents skipped. 215 tests green.

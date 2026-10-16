@@ -13,7 +13,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
-| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (6/8 tasks) |
+| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | In progress (7/8 tasks) |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |
 | 6 | Security test suite, demo, docs | Planned |
@@ -147,6 +147,20 @@ Uploaded files are processed by a background worker:
 The worker (`python -m app.worker`) claims jobs with `FOR UPDATE SKIP LOCKED` through a narrow database function, so several workers can run safely and a crashed worker's job is reclaimed after 10 minutes. Extraction and embedding happen outside any transaction; the chunks are then written while holding a share lock on the document, copying its ACL at that moment, so a permission change made during ingestion always reaches the new chunks. Unreadable or encrypted files fail immediately with a message the uploader can see; other errors retry up to 3 times with backoff.
 
 Tests use a deterministic fake embedder; one test runs the real model (skip it offline with `VEYL_SKIP_MODEL_TESTS=1`).
+
+## Retrieval guarantees
+
+Retrieval (`app/retrieval/search.py`) runs in one tenant transaction:
+
+1. Read the tenant's `policy_version`, then look up the cache by `sha256(tenant, user, policy_version, model, normalised query)`.
+2. On a miss, embed the query and run the vector search with the SQL read filter **inside** the query, so unauthorized chunks never leave the database. On a hit, the cached **chunk ids** (never content) are re-fetched through the same filter.
+3. Re-check every returned chunk with the Python policy. Any disagreement aborts the request (`500 authorization_mismatch`) instead of returning data.
+
+There is no fallback path: if embedding or the database fails, the request fails. Permission changes and deletions bump `policy_version`, so every cached result for the tenant stops matching immediately; stale chunks whose `acl_version` lags their document's are invisible even if a rewrite were missed.
+
+Tests prove: tenant A never retrieves tenant B's chunks; members never retrieve admin-only chunks; explicit grants never exceed clearance; permission changes apply to the very next search; a cached result never reaches a less-privileged user, even through a forged cache row; and breaking the SQL filter is caught by the Python re-check.
+
+**Recall note:** small tenants are searched exactly (the planner pre-filters by tenant). In large tenants the HNSW index is approximate; iterative scans keep searching when early candidates are filtered out, but recall under very heavy filtering is best-effort, never at the expense of authorization.
 
 ## Repository layout
 
