@@ -14,8 +14,8 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | In progress (7/8 tasks) |
-| 5 | Dashboard | Planned |
+| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
+| 5 | Dashboard | Next |
 | 6 | Security test suite, demo, docs | Planned |
 
 ## Quickstart
@@ -49,6 +49,20 @@ Then log in (through the web proxy, as the browser would):
 ```bash
 curl -c jar.txt -H 'Content-Type: application/json'   -d '{"tenant_slug":"acme","email":"alice@acme.test","password":"choose-a-long-password"}'   http://127.0.0.1:3000/api/v1/auth/login
 curl -b jar.txt http://127.0.0.1:3000/api/v1/auth/me
+```
+
+**Answers need an LLM.** Put a free Groq key in `.env` as `LLM_API_KEY` (see [LLM providers](#llm-providers)). No key, or offline? Use the bundled stand-in, which answers from the best-matching source:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build
+```
+
+Ask a question (after uploading a document through the API):
+
+```bash
+CSRF=$(awk '$6 == "veyl_csrf" { print $7 }' jar.txt)
+curl -b jar.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+  -d '{"question": "What flights may employees book?"}' http://127.0.0.1:3000/api/v1/query
 ```
 
 All ports bind to `127.0.0.1` only. Reset everything (including the database volume) with `docker compose down -v`.

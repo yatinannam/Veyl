@@ -2,6 +2,14 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 4 complete: answers, citations, conversations, audit
+
+**Summary** — `POST /query` answers only from chunks the caller may read: re-authorized history, permission-filtered retrieval with a full Python re-check, the model skipped when nothing authorized is relevant, untrusted-source prompt framing, server-verified citations, and fail-closed errors. Conversations are owner-only and hide answers whose sources were revoked. The append-only audit log (trigger binds even the owner) records logins, user/document/tenant changes, ingestion, every question (ids, model, trace; question hashed by default), and every read of the log; admins query it with filters and keyset pagination. CI now runs a full question through the stack with a stdlib LLM stand-in (`docker-compose.stub.yml`).
+
+**Live check** — with the user's Groq key, `openai/gpt-oss-120b` answered "Employees are allowed to book economy flights. [S1]" citing *Travel policy*; an unrelated question got "nothing found" without a model call; all three questions appear in the audit log with the question hashed. 298 backend tests.
+
+**Next** — whole-phase review, then Phase 5 (dashboard).
+
 ## 2026-10-16 — Phase 4, Task 7: RAG pipeline and /query
 
 **Done** — `app/rag/service.py` (`answer_question`: ownership check with audited denial, re-authorized history, filtered retrieval with no fallback, LLM skipped when nothing authorized is relevant, server-side citations with snippets, one transaction to store the exchange and audit `rag.query`; failures audited as `error` with the stage), `app/conversations` (own conversations only; answers whose cited chunks are no longer readable are hidden in views and history), routers for `/query` and `/conversations`, `create_app(embedder=, llm=)` injection with a lazy real embedder by default. Security tests: brief 3 (canary never in any prompt), 7 (end-to-end cache), 9 (only supplied, readable citations), T12 (injected text stays in its neutralised source block), T13 (history re-authorization; other users' conversations 404), T14 (LLM and embedding failures fail closed and are audited), audit records ids not content, plaintext mode, forged tenant field rejected. Found and fixed a history-ordering bug (per-transaction `now()`). Mutation check: not hiding stale answers fails the history test. 298 tests green.

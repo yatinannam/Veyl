@@ -1,0 +1,23 @@
+# Offline / CI overlay: answers come from a local stand-in instead of a real LLM.
+#   docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build
+services:
+  llm-stub:
+    image: python:3.11-slim
+    command: ["python", "/stub/stub.py"]
+    user: "10001:10001"
+    volumes:
+      - ./docker/llm-stub:/stub:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    environment:
+      LLM_BASE_URL: http://llm-stub:8080/v1
+      LLM_MODEL: veyl-stub
+      LLM_API_KEY: ""
+    depends_on:
+      llm-stub:
+        condition: service_healthy
