@@ -38,7 +38,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.login_limiters = LoginLimiters.create(
-        max_failures=settings.login_max_failures, window_seconds=settings.login_window_seconds
+        max_failures=settings.login_max_failures,
+        window_seconds=settings.login_window_seconds,
+        max_concurrent_hashes=settings.login_max_concurrent_hashes,
     )
     register_error_handlers(app)
 

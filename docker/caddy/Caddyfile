@@ -1,0 +1,12 @@
+# Public entry point. Caddy discards any client-supplied X-Forwarded-For (no trusted
+# proxies are configured) and sets it to the real peer address, so the client IP the API
+# sees for login rate limiting cannot be forged. Next.js and the API sit behind it.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	reverse_proxy web:3000
+}

@@ -2,6 +2,26 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2 review: fixes and deferred items
+
+**Review** — independent whole-phase review: no Critical, 2 Important, 8 Minor. Data isolation and authorization model judged sound.
+
+**Fixed (Important)**
+- *Per-IP login limit bypassable with a forged `X-Forwarded-For`.* Next.js only sets the header when missing, so a client value reached uvicorn (which trusts forwarded headers). Added `edge` (Caddy) as the sole public entry point; it overwrites the header with the real peer. `docker/smoke/login-ip-limit.sh` (21 failed logins, each with a different forged IP) returned 401 before the fix and 429 after; it now runs in CI. Also capped concurrent password verifications (`test_login_sheds_load_when_password_hashing_is_saturated` RED to GREEN) so a flood cannot exhaust memory or threads. D-020 superseded by D-022, D-023.
+- *Rate limiter kept every key that ever failed.* The Task 3 fix only covered keys that were looked up again. Added a once-per-window sweep (`test_limiter_sweeps_keys_whose_failures_have_expired` RED to GREEN: 1001 keys before, at most 1 after).
+
+**Deferred (Minor), to address in Phase 3 or later**
+1. Caller's own admin status is checked before the tenant lock (narrow window after demotion or deactivation); re-check the caller inside the transaction.
+2. `FOR UPDATE` on the tenant row conflicts with foreign-key key-share locks; use `FOR NO KEY UPDATE` before Phase 3 adds document inserts.
+3. Session-expiry test tolerance (5 s) cannot distinguish the DB clock from the app clock; assert exactly 3600.
+4. No test for a non-ASCII CSRF cookie (the header case is tested).
+5. NUL bytes in login `tenant_slug` or `email` cause a 500 and are not counted by the limiter; reject them with 422.
+6. Rate-limit check and record are not atomic (a concurrent burst can exceed the limit once); the hashing cap now bounds the damage.
+7. Login does not revoke an already-presented session; logout with a dead session leaves cookies; no CSRF-cookie refresh path.
+8. Provisioning reports any integrity error as "slug already exists"; CLI email is not format-validated.
+
+**Phase 3 notes from review** — RLS filters rows after the HNSW scan, so top-k recall drops with many tenants (use pgvector iterative scans); read `policy_version` in the same transaction as retrieval.
+
 ## 2026-10-16 — Phase 2 complete: schema, RLS, auth, RBAC
 
 **Summary** — tenants/users/sessions behind forced row-level security with column-level grants; two SECURITY DEFINER lookups (login, session) as the only cross-tenant reads; central `authz` policy with property tests; argon2id + hashed session tokens + per-account/per-IP lockout; `/auth/*`, `/tenant`, `/users` with CSRF double-submit, generic login errors, no self-escalation, one-admin invariant under a row lock; operator CLI for tenant provisioning. 138 backend tests (unit, integration, security). Compose API now trusts forwarded headers behind the local proxy; CI smoke test provisions a tenant and logs in through the Next.js proxy. Verified locally end to end, including CSRF-protected logout through the proxy. Decisions D-015 to D-021; spec sections 5.1, 7, 11 updated.

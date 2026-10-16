@@ -70,14 +70,18 @@ def login(
     if limiters.account.is_blocked(account_key) or limiters.ip.is_blocked(ip_key):
         raise RateLimited()
 
-    with engine.connect() as conn:
-        row = conn.execute(
-            text("SELECT * FROM auth_resolve_login(:slug, :email)"),
-            {"slug": slug, "email": email},
-        ).one_or_none()
-
-    # Always verify (dummy hash for unknown users) so timing does not reveal accounts.
-    password_ok = verify_password(row.password_hash if row else None, password)
+    if not limiters.hashing.acquire(timeout=limiters.hash_wait_seconds):
+        raise RateLimited()
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT * FROM auth_resolve_login(:slug, :email)"),
+                {"slug": slug, "email": email},
+            ).one_or_none()
+        # Always verify (dummy hash for unknown users) so timing does not reveal accounts.
+        password_ok = verify_password(row.password_hash if row else None, password)
+    finally:
+        limiters.hashing.release()
     if row is None or not row.is_active or not password_ok:
         limiters.account.record_failure(account_key)
         limiters.ip.record_failure(ip_key)

@@ -41,9 +41,9 @@ services:
       - 0.0.0.0
       - --port
       - "8000"
-      # Trust X-Forwarded-For so login rate limiting sees the browser's IP behind the
-      # Next.js proxy. Safe only because this port binds to 127.0.0.1 and the Compose
-      # network (spec section 11).
+      # Trust X-Forwarded-For so login rate limiting sees the browser's IP. The header is
+      # authoritative because `edge` (Caddy) overwrites any client-supplied value and
+      # Next.js forwards it unchanged. Only localhost can reach this port directly.
       - --proxy-headers
       - --forwarded-allow-ips
       - "*"
@@ -70,8 +70,20 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    # Not published: browsers reach the web app only through `edge`.
+
+  edge:
+    image: caddy:2-alpine
+    user: "10001:10001"
+    environment:
+      XDG_CONFIG_HOME: /tmp/caddy/config
+      XDG_DATA_HOME: /tmp/caddy/data
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - web
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3000:8080"
 
 volumes:
   pgdata:

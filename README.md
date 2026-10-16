@@ -32,7 +32,8 @@ docker compose up --build
 | `db` | Postgres 16 + pgvector; bootstraps least-privilege roles on first start | `127.0.0.1:5432` |
 | `migrate` | One-shot: runs Alembic migrations as `veyl_owner`, then exits | — |
 | `api` | FastAPI, connects as `veyl_app` (no superuser, no RLS bypass), runs as non-root | http://127.0.0.1:8000/api/v1/docs |
-| `web` | Next.js dashboard; proxies `/api/*` to `api` so the browser sees one origin | http://127.0.0.1:3000 |
+| `web` | Next.js dashboard; proxies `/api/*` to `api` so the browser sees one origin | internal only |
+| `edge` | Caddy reverse proxy, the public entry point; overwrites `X-Forwarded-For` so client IPs cannot be forged | http://127.0.0.1:3000 |
 
 ### Provisioning a tenant
 
@@ -118,7 +119,7 @@ A document chunk is readable only if it belongs to the caller's tenant, its clas
 
 **User management guards:** admins cannot change their own role or status, a tenant always keeps at least one active admin (enforced under a row lock, so concurrent demotions cannot race past it), deactivating a user revokes their sessions, and every role or status change bumps the tenant's `policy_version` (used later to invalidate cached retrieval results). Identifiers from another tenant return 404.
 
-**Credentials:** passwords are hashed with argon2id (minimum 12 characters); unknown accounts still pay the hashing cost so timing does not reveal which accounts exist. Session tokens are random 256-bit values stored only as SHA-256 digests. Failed logins are rate-limited per account and, more loosely, per client IP.
+**Credentials:** passwords are hashed with argon2id (minimum 12 characters); unknown accounts still pay the hashing cost so timing does not reveal which accounts exist. Session tokens are random 256-bit values stored only as SHA-256 digests. Failed logins are rate-limited per account and, more loosely, per client IP (the client IP comes from the `edge` proxy and cannot be forged; a smoke test proves it). At most four password checks run at once; excess attempts get 429 instead of tying up the server.
 
 ## Repository layout
 

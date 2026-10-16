@@ -22,10 +22,21 @@ class LoginRateLimiter:
         self._clock = clock
         self._failures: dict[str, deque[float]] = {}
         self._lock = threading.Lock()
+        self._last_sweep = clock()
+
+    def _sweep(self) -> None:
+        """Drop every key whose newest failure has left the window. Runs at most once per
+        window, so memory is bounded by the keys that failed in the last two windows."""
+        now = self._clock()
+        if now - self._last_sweep < self._window:
+            return
+        cutoff = now - self._window
+        for key in [k for k, entries in self._failures.items() if entries[-1] <= cutoff]:
+            del self._failures[key]
+        self._last_sweep = now
 
     def _recent(self, key: str) -> deque[float]:
-        """Failures for `key` inside the window. Keys with none are dropped, so probing
-        many distinct accounts cannot grow memory without bound."""
+        """Failures for `key` inside the window. A key with none left is dropped."""
         cutoff = self._clock() - self._window
         entries = self._failures.get(key, deque())
         while entries and entries[0] <= cutoff:
@@ -40,6 +51,7 @@ class LoginRateLimiter:
 
     def record_failure(self, key: str) -> None:
         with self._lock:
+            self._sweep()
             entries = self._recent(key)
             entries.append(self._clock())
             self._failures[key] = entries
@@ -57,12 +69,25 @@ class LoginRateLimiter:
 class LoginLimiters:
     account: LoginRateLimiter
     ip: LoginRateLimiter
+    # Caps concurrent password verifications whatever the client identity, so a login
+    # flood cannot exhaust memory or every worker thread.
+    hashing: threading.BoundedSemaphore
+    hash_wait_seconds: float
 
     @classmethod
-    def create(cls, *, max_failures: int, window_seconds: float) -> "LoginLimiters":
+    def create(
+        cls,
+        *,
+        max_failures: int,
+        window_seconds: float,
+        max_concurrent_hashes: int = 4,
+        hash_wait_seconds: float = 2.0,
+    ) -> "LoginLimiters":
         return cls(
             account=LoginRateLimiter(max_failures=max_failures, window_seconds=window_seconds),
             ip=LoginRateLimiter(
                 max_failures=max_failures * IP_LIMIT_MULTIPLIER, window_seconds=window_seconds
             ),
+            hashing=threading.BoundedSemaphore(max_concurrent_hashes),
+            hash_wait_seconds=hash_wait_seconds,
         )

@@ -70,7 +70,9 @@ flowchart LR
 
     LLM[[LLM provider<br/>Groq / Gemini / Ollama<br/>OpenAI-compatible API]]
 
-    UI -- cookie session --> WEB
+    EDGE[edge<br/>Caddy reverse proxy<br/>sets X-Forwarded-For]
+    UI -- cookie session --> EDGE
+    EDGE --> WEB
     WEB -- /api/* rewrite --> API
     API -- veyl_app role,<br/>SET LOCAL app.tenant_id --> DB
     WK -- veyl_app role --> DB
@@ -79,6 +81,7 @@ flowchart LR
     API -- authorized context only --> LLM
 ```
 
+- **edge** (Caddy) is the only public entry point. It discards any client-supplied `X-Forwarded-For` and sets the real peer address, so the client IP used for login rate limiting cannot be forged.
 - **web** renders UI and hides controls a user can't use; it makes **no** authorization decisions. Next.js rewrites `/api/*` to the API so the browser sees one origin (cookies stay first-party, `SameSite=Lax` works).
 - **api** owns authentication, authorization, ingestion intake, retrieval, LLM calls, conversations, audit.
 - **worker** parses, chunks, and embeds documents. Same codebase as `api` (`python -m app.worker`).
@@ -505,7 +508,7 @@ Server authorization is authoritative; the UI uses `/auth/me` permissions only t
 7. **No encryption at rest** beyond whatever the host disk provides; uploads volume is plaintext.
 8. **Embeddings** can leak approximate content if exfiltrated; they are tenant-scoped and RLS-protected like chunks.
 9. Single-node, local deployment; no HA.
-10. **Forwarded headers are trusted** (`uvicorn --forwarded-allow-ips '*'`) so login rate limiting sees the browser IP behind the Next.js proxy. Safe only while the API port is bound to 127.0.0.1 and the Compose network; a deployment exposing the API directly must restrict this to the proxy's address.
+10. **Forwarded headers are trusted by the API** (`uvicorn --forwarded-allow-ips '*'`). This is sound only because the public entry point (`edge`, Caddy) overwrites `X-Forwarded-For`; Next.js alone would pass a client-forged value through. Anything that can reach the API port directly (localhost only in Compose) can forge its IP. A deployment must keep the API unreachable except through the edge, or restrict trusted proxies to the edge's address.
 
 ---
 

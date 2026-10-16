@@ -89,3 +89,14 @@ def test_limiter_does_not_retain_keys_without_recent_failures() -> None:
     clock.now += 61
     limiter.is_blocked("k")
     assert limiter.tracked_keys() == 0
+
+
+def test_limiter_sweeps_keys_whose_failures_have_expired() -> None:
+    # Keys that record failures and are never looked up again must not live forever.
+    clock = FakeClock()
+    limiter = LoginRateLimiter(max_failures=3, window_seconds=60, clock=clock)
+    for i in range(1000):
+        limiter.record_failure(f"spray-{i}")
+    clock.now += 61
+    limiter.record_failure("fresh")
+    assert limiter.tracked_keys() <= 1

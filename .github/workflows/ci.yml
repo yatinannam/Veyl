@@ -65,6 +65,8 @@ jobs:
         run: |
           curl -fsS -c jar.txt -H 'Content-Type: application/json'             -d '{"tenant_slug":"smoke","email":"admin@smoke.test","password":"smoke-test-password"}'             http://127.0.0.1:3000/api/v1/auth/login
           curl -fsS -b jar.txt http://127.0.0.1:3000/api/v1/auth/me
+      - name: Forged X-Forwarded-For cannot evade the per-IP login limit
+        run: sh docker/smoke/login-ip-limit.sh http://127.0.0.1:3000 21
       - name: Logs on failure
         if: failure()
         run: docker compose logs
