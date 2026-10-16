@@ -12,7 +12,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 |---|---|---|
 | 1 | Architecture & threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
 | 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC | Planned |
+| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Planned |
 | 3 | Ingestion, embeddings, filtered retrieval | Planned |
 | 4 | LLM, citations, conversations, audit | Planned |
 | 5 | Dashboard | Planned |

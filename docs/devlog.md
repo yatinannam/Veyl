@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-16 — Phase 2 plan written
+
+**Done** — [Phase 2 plan](superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md), 8 tasks: error envelope + trace ids + SecretStr settings; pure `authz` policy with Hypothesis properties; argon2id/token/rate-limit primitives; migration 0001 (tenants, users, sessions, forced RLS, column-level grants); definer lookups + operator provisioning CLI; session auth API with CSRF double-submit and lockout; tenant/user management with escalation guards; Compose proxy headers, end-to-end login smoke test in CI, docs.
+**Spec refinements found while planning** — RLS predicate must use `NULLIF(current_setting(...), '')` (a used transaction-local setting reads back as `''`); FORCE RLS needs an explicit owner policy so SECURITY DEFINER lookups can read across tenants.
+**Next** — user reviews the plan.
+
 ## 2026-10-16 — No-emoji rule
 
 **Done** — new project rule from the user: no emojis anywhere. Replaced status icons in README and the Phase 0 plan with words, and check marks in the spec's permission matrix with Yes/No. Added `backend/tests/unit/test_no_emojis.py`, which scans every tracked file (lockfiles and binaries excluded) and fails CI on any emoji, pictograph, or dingbat; verified it catches a planted emoji. 16 tests green.
