@@ -15,7 +15,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
-| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (4/7 tasks) |
+| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (5/7 tasks) |
 | 6 | Security test suite, demo, docs | Planned |
 
 ## Quickstart
@@ -132,6 +132,7 @@ How it talks to the API:
 - Permission hints from `/auth/me` only decide which controls to show; every action is checked again by the API, and its errors are shown in plain words (`src/lib/messages.ts`).
 - Sign-in (`/login`) asks for workspace, email, and password and only continues to same-site paths from `?next=` (never `//host` or absolute URLs). Signed-in pages share a shell with navigation shown from your permission hints and a clearance meter ("Manager can read up to confidential").
 - Ask (`/chat`): questions and answers in a conversation list; answers are set in a serif face with superscript source numbers that jump to source cards (title, classification, snippet, link to the document). Markers the server did not verify are dropped rather than shown as broken links.
+- Documents (`/documents`): the documents you can read with classification, processing status (refreshed every 3 seconds while anything is queued or processing), and date. Managers and admins upload with a classification picker that only offers levels they are cleared for, choose roles, and share with named colleagues; the uploader and admins edit permissions or delete from the document page.
 - Classification levels each have one colour (public sage, internal blue, confidential amber, restricted oxblood), always shown next to the level's name.
 
 ## Authorization model
