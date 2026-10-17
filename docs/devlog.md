@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5, Task 4: Ask page
+
+**Done** — `/chat`: conversation list (open, start new, delete), question composer (Enter to send, Shift+Enter for a new line), answers in Source Serif 4 with superscript source numbers linked to source cards that carry the classification band, badge, title (linking to the document), and snippet. Unknown markers such as `[S9]` are dropped. Errors from the API (model unavailable, session ended) are shown in plain words above the composer. 22 frontend tests.
+**Next** — Documents: list, upload, permissions (Task 5).
+
 ## 2026-10-17 — Phase 5, Task 3: sign-in and app shell
 
 **Done** — `/login` with a slate panel describing the four classification levels next to the form; sign-in errors never say which field was wrong; `safeNext` only accepts same-site paths (tested against `//host`, `/\host`, and absolute URLs). Signed-in route group wraps pages in the session provider and a shell: navigation from permission hints (People and Audit log for admins only), clearance meter, sign out. 19 frontend tests.
