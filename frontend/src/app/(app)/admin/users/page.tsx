@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { ErrorText, Field, Input, Select } from "@/components/form";
+import { RoleControl } from "@/components/people/role-control";
 import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -97,22 +98,12 @@ export default function PeoplePage() {
                     {self ? <span className="text-muted-foreground"> (you)</span> : null}
                   </td>
                   <td className="px-4 py-3">
-                    <label htmlFor={`role-${user.id}`} className="sr-only">
-                      Role for {user.email}
-                    </label>
-                    <Select
-                      id={`role-${user.id}`}
-                      value={user.role}
+                    <RoleControl
+                      key={`${user.id}-${user.role}`}
+                      user={user}
                       disabled={self}
-                      className="w-36"
-                      onChange={(event) => void update(user, { role: event.target.value as Role })}
-                    >
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {ROLE_LABEL[role]}
-                        </option>
-                      ))}
-                    </Select>
+                      onSave={(role) => void update(user, { role })}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     {self ? (

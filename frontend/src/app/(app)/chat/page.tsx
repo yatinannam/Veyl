@@ -21,7 +21,7 @@ export default function AskPage() {
   const [error, setError] = useState<string | null>(null);
   const messages = activeId ? (detail.data?.messages ?? []) : [];
 
-  async function ask(question: string) {
+  async function ask(question: string): Promise<boolean> {
     setPending(question);
     setError(null);
     try {
@@ -32,8 +32,10 @@ export default function AskPage() {
       if (answer.conversation_id === activeId) detail.reload();
       else setActiveId(answer.conversation_id);
       conversations.reload();
+      return true;
     } catch (failure) {
       setError(describeError(failure));
+      return false;
     } finally {
       setPending(null);
     }
@@ -107,7 +109,7 @@ export default function AskPage() {
         </div>
         <div className="sticky bottom-0 space-y-2 border-t border-border bg-background pt-4 pb-2">
           <ErrorText>{error}</ErrorText>
-          <Composer onAsk={(question) => void ask(question)} disabled={pending !== null} />
+          <Composer onAsk={ask} disabled={pending !== null} />
           {activeId ? (
             <div className="flex justify-end">
               <Button variant="ghost" size="sm" onClick={() => void remove(activeId)}>

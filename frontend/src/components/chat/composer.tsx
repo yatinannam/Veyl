@@ -5,21 +5,25 @@ import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/form";
 import { Button } from "@/components/ui/button";
 
-export function Composer({ onAsk, disabled }: { onAsk: (question: string) => void; disabled: boolean }) {
+export function Composer({ onAsk, disabled }: {
+  onAsk: (question: string) => Promise<boolean>;
+  disabled: boolean;
+}) {
   const [question, setQuestion] = useState("");
 
-  function submit(event?: FormEvent) {
+  async function submit(event?: FormEvent) {
     event?.preventDefault();
     const trimmed = question.trim();
     if (!trimmed || disabled) return;
-    onAsk(trimmed);
     setQuestion("");
+    // Give the question back when it could not be answered, so it need not be retyped.
+    if (!(await onAsk(trimmed))) setQuestion(trimmed);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      submit();
+      void submit();
     }
   }
 

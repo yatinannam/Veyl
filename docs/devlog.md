@@ -2,6 +2,29 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5 review: fixes and deferred items
+
+**Review** — independent whole-phase review: no Critical, 2 Important, 9 Minor. Directory endpoint, citation classification, CSRF handling, rendering of model output (text only), and the proxy matcher were checked and found sound. CI green.
+
+**Fixed**
+- *(Important) Open redirect after sign-in.* `/login?next=/%09/evil.example` passed the prefix check; the URL parser drops the tab and the router navigated to `evil.example`. The target is now resolved against the current origin and must keep it (D-048). Tests for `%09`, `%0A`, `%0D`, and `%09%5C` RED to GREEN; verified in Chromium against the running stack.
+- *(Important) Arrow keys on a role select changed roles immediately.* Roles now change only on "Save role" (D-049). Test RED to GREEN.
+- *(Re-graded to Important) One failed poll blanked the documents list and stopped polling for good.* `useApi` keeps the last good data for the same path after a failed reload and never shows another path's data while loading (this also fixes old conversation messages showing under a newly selected conversation). Tests RED to GREEN.
+- *(Re-graded to Important) A failed question was lost.* The composer gives the question back when the request fails (for example, a free-tier rate limit). Test RED to GREEN.
+
+**Deferred (Minor)**
+1. A session that ends mid-use shows "Your session has ended" with no link; any 401 should redirect to `/login?next=<path>`.
+2. The upload dialog keeps the old file in the file input after Cancel; reset the form on close.
+3. Chat: the empty state flashes between sending the first question and the conversation loading; conversation load errors are not shown.
+4. Audit date filters use whole UTC days while times display in local time; use local midnight or label as UTC.
+5. A source marker inside bold text renders as raw `[S1]`; numbered lists render as bullets.
+6. The permission editor cannot show or remove grants to deactivated people (they are not in the directory).
+7. Enter submits during IME composition; check `isComposing`.
+8. "Deactivate" has no confirmation.
+9. Concurrent permission edits: the later save overwrites the earlier one.
+
+**Tests** — 43 frontend, 302 backend.
+
 ## 2026-10-17 — Phase 5 complete: dashboard
 
 **Summary** — sign-in, Ask with cited answers and conversations, Documents with clearance-aware upload and sharing, People and Audit log for admins. The UI decides nothing about access; it shows what `/auth/me` hints at and explains API errors in plain words.

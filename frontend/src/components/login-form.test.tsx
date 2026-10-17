@@ -24,6 +24,11 @@ describe("safeNext", () => {
     ["?next=//evil.example", "/chat"],
     ["?next=/%5Cevil.example", "/chat"],
     ["?next=https://evil.example", "/chat"],
+    ["?next=/%09/evil.example", "/chat"],
+    ["?next=/%0A/evil.example", "/chat"],
+    ["?next=/%0D/evil.example", "/chat"],
+    ["?next=/%09%5Cevil.example", "/chat"],
+    ["?next=/documents/abc?x=1#top", "/documents/abc?x=1#top"],
     ["", "/chat"],
   ])("%s -> %s", (search, expected) => {
     expect(safeNext(search)).toBe(expected);

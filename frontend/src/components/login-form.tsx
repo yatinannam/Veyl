@@ -8,13 +8,15 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { describeError } from "@/lib/messages";
 
-/** Only same-site paths are allowed as a post-sign-in destination. */
-export function safeNext(search: string): string {
+/** Only same-site paths are allowed as a post-sign-in destination. The candidate is
+ * resolved the way the router will resolve it (the URL parser drops tabs and newlines, so
+ * "/<tab>/evil.example" becomes "//evil.example") and must keep this origin. */
+export function safeNext(search: string, origin: string = window.location.origin): string {
   const next = new URLSearchParams(search).get("next");
-  if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
-    return next;
-  }
-  return "/chat";
+  if (!next || !next.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(next)) return "/chat";
+  const url = new URL(next, origin);
+  if (url.origin !== origin) return "/chat";
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 export function LoginForm() {
