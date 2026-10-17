@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5, Task 6: People and audit log
+
+**Done** — `/admin/users`: add a person (email, temporary password, role), change role, deactivate or reactivate; your own row is read-only. `/admin/audit`: filters for event, person, and date range (whole days in UTC), plain-language event names, outcome, actor email, short detail (passages and documents for questions, reason otherwise), short trace id; keyset pagination with "Show older events". Ruling: the plan loaded the first page from an effect, which the React lint rule rejects (`set-state-in-effect`); the first page now comes from `useApi` keyed on the filter query, and older pages are kept only while they belong to the same query. 28 frontend tests.
+**Next** — end-to-end check with the real model, screenshots, docs, review (Task 7).
+
 ## 2026-10-17 — Phase 5, Task 5: Documents
 
 **Done** — `/documents` table (classification band and badge, status, date) that polls every 3 seconds only while a document is queued or processing; upload dialog (native `<dialog>`, file, title, classification, roles, people from the directory); `/documents/[id]` with details and, for the uploader and admins, a permission editor and delete. The classification picker offers only levels within the editor's clearance (the API rejects others anyway). Ruling: the editor is keyed on the document id rather than `updated_at`, so the "Permissions saved" notice is not lost when the page reloads the document. 25 frontend tests.
