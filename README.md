@@ -15,7 +15,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
-| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (2/7 tasks) |
+| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (3/7 tasks) |
 | 6 | Security test suite, demo, docs | Planned |
 
 ## Quickstart
@@ -130,6 +130,7 @@ How it talks to the API:
 - Every call goes to the same origin (`/api/v1/...`) through a small typed client (`src/lib/api.ts`). The session cookie is HttpOnly and never touched by JavaScript; the client only reads the `veyl_csrf` cookie to echo it in `X-CSRF-Token` on state-changing requests. Nothing is kept in `localStorage`.
 - `src/proxy.ts` sends requests without a session cookie to `/login` before rendering. A cookie that is present but no longer valid is caught by the session provider, which loads `/auth/me` and redirects on 401.
 - Permission hints from `/auth/me` only decide which controls to show; every action is checked again by the API, and its errors are shown in plain words (`src/lib/messages.ts`).
+- Sign-in (`/login`) asks for workspace, email, and password and only continues to same-site paths from `?next=` (never `//host` or absolute URLs). Signed-in pages share a shell with navigation shown from your permission hints and a clearance meter ("Manager can read up to confidential").
 - Classification levels each have one colour (public sage, internal blue, confidential amber, restricted oxblood), always shown next to the level's name.
 
 ## Authorization model
