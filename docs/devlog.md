@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5, Task 1: people directory and citation classification
+
+**Done** — `GET /users/directory` (new `user.directory` action for managers and admins; active users in the caller's tenant only) so document owners can pick people to share with; every citation in `/query` and conversation views now carries the chunk's `classification`, so the UI can mark it. 302 backend tests green.
+**Next** — frontend foundations (Task 2).
+
 ## 2026-10-17 — Phase 5 plan written
 
 **Done** — [Phase 5 plan](superpowers/plans/2026-10-17-phase-5-dashboard.md): 7 tasks. Backend additions (people directory for sharing, classification on citations); frontend foundations (design tokens, IBM Plex Sans and Source Serif 4, typed API client with CSRF, session provider, `proxy.ts` redirect); sign-in and app shell; Ask with cited answers; Documents with clearance-aware sharing; People and audit log for admins; screenshots and review. Design direction: classification bands (public sage, internal blue, confidential amber, restricted oxblood) are the one bold element on a quiet, light interface.

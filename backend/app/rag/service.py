@@ -49,6 +49,7 @@ class Citation:
     document_title: str
     chunk_id: UUID
     snippet: str
+    classification: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,6 +187,7 @@ def answer_question(
                 document_title=s.chunk.document_title,
                 chunk_id=s.chunk.chunk_id,
                 snippet=make_snippet(s.chunk.content),
+                classification=s.chunk.acl.classification.value,
             )
             for s in resolved.cited
         ]

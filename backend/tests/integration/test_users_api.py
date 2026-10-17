@@ -179,3 +179,25 @@ def test_concurrent_mutual_demotion_keeps_one_admin(
             .all()
         )
     assert len(admins) == 1
+
+
+def test_managers_see_the_people_directory(
+    owner_engine: Engine, database_urls: DatabaseUrls
+) -> None:
+    a = create_tenant_with_admin(owner_engine)
+    b = create_tenant_with_admin(owner_engine)
+    manager, manager_email = create_user(owner_engine, a.tenant_id, role=Role.MANAGER)
+    member, member_email = create_user(owner_engine, a.tenant_id)
+    create_user(owner_engine, a.tenant_id, is_active=False)
+    with client_for(database_urls.app) as client:
+        login(client, a.slug, manager_email)
+        listed = client.get(f"{API}/users/directory").json()
+    assert {(e["id"], e["role"]) for e in listed} == {
+        (str(a.admin_id), "admin"),
+        (str(manager), "manager"),
+        (str(member), "member"),
+    }
+    assert str(b.admin_id) not in {e["id"] for e in listed}
+    with client_for(database_urls.app) as client:
+        login(client, a.slug, member_email)
+        assert client.get(f"{API}/users/directory").status_code == 403

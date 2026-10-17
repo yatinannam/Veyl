@@ -45,6 +45,25 @@ def lock_tenant_membership(conn: Connection, tenant_id: UUID) -> None:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class DirectoryEntry:
+    id: UUID
+    email: str
+    role: Role
+
+
+def directory(engine: Engine, ctx: AuthContext) -> list[DirectoryEntry]:
+    """Active colleagues, so document owners can share with specific people."""
+    authorize(ctx, Action.USER_DIRECTORY)
+    with tenant_transaction(engine, ctx.tenant_id) as conn:
+        rows = conn.execute(
+            select(users.c.id, users.c.email, users.c.role)
+            .where(users.c.tenant_id == ctx.tenant_id, users.c.is_active)
+            .order_by(users.c.email)
+        ).all()
+    return [DirectoryEntry(r.id, r.email, Role(r.role)) for r in rows]
+
+
 def list_users(engine: Engine, ctx: AuthContext) -> list[UserRecord]:
     authorize(ctx, Action.USER_MANAGE)
     with tenant_transaction(engine, ctx.tenant_id) as conn:

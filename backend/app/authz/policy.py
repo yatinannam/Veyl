@@ -15,6 +15,8 @@ class Action(StrEnum):
     QUERY = "rag.query"
     DOCUMENT_UPLOAD = "document.upload"
     DOCUMENT_MANAGE = "document.manage"
+    # See colleagues' names and roles in order to share documents with them.
+    USER_DIRECTORY = "user.directory"
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +46,8 @@ def is_allowed(ctx: AuthContext, action: Action, resource: DocumentRef | None = 
         return True
     if action in _ADMIN_ONLY:
         return ctx.role is Role.ADMIN
+    if action is Action.USER_DIRECTORY:
+        return ctx.role in _UPLOADERS
     # Document actions: deny unless a same-tenant resource within clearance is given.
     if resource is None or resource.tenant_id != ctx.tenant_id:
         return False
@@ -69,7 +73,7 @@ def permissions(role: Role) -> list[str]:
     if role is Role.ADMIN:
         granted |= _ADMIN_ONLY
     if role in _UPLOADERS:
-        granted.add(Action.DOCUMENT_UPLOAD)
+        granted |= {Action.DOCUMENT_UPLOAD, Action.USER_DIRECTORY}
     return sorted(str(action) for action in granted)
 
 

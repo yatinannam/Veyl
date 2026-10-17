@@ -15,7 +15,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
-| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (0/7 tasks) |
+| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (1/7 tasks) |
 | 6 | Security test suite, demo, docs | Planned |
 
 ## Quickstart
@@ -97,6 +97,7 @@ The API is a FastAPI app factory (`app.main:create_app`). Configuration comes on
 | `GET /api/v1/tenant` | Current tenant |
 | `PATCH /api/v1/tenant` | Rename tenant (admin) |
 | `GET /api/v1/users` | List users in your tenant (admin) |
+| `GET /api/v1/users/directory` | Active colleagues `{id, email, role}`, for choosing who to share a document with (manager, admin) |
 | `POST /api/v1/users` | Create a user `{email, password, role}` (admin) |
 | `PATCH /api/v1/users/{id}` | Change role and/or active status (admin; not yourself) |
 | `POST /api/v1/documents` | Upload (multipart: `file`, `title`, `classification`, `allowed_roles`, `allowed_user_ids`); manager or admin, within clearance → 202 |

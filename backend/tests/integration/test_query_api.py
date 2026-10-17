@@ -52,6 +52,7 @@ def test_query_answers_with_verified_citations_and_starts_a_conversation(
         ("S1", str(travel), "Travel policy")
     ]
     assert body["citations"][0]["snippet"].startswith("Employees may book")
+    assert body["citations"][0]["classification"] == "internal"
     assert body["trace_id"]
     assert [m["role"] for m in conversation["messages"]] == ["user", "assistant"]
     assert conversation["messages"][1]["cited_document_ids"] == [str(travel)]

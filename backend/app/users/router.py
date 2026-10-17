@@ -52,6 +52,20 @@ def _out(record: UserRecord) -> UserOut:
     )
 
 
+class DirectoryEntryOut(BaseModel):
+    id: UUID
+    email: str
+    role: Role
+
+
+@router.get("/directory")
+def directory(ctx: CurrentUser, engine: EngineDep) -> list[DirectoryEntryOut]:
+    return [
+        DirectoryEntryOut(id=e.id, email=e.email, role=e.role)
+        for e in service.directory(engine, ctx)
+    ]
+
+
 @router.get("")
 def list_users(ctx: CurrentUser, engine: EngineDep) -> list[UserOut]:
     return [_out(r) for r in service.list_users(engine, ctx)]

@@ -23,6 +23,7 @@ class CitationOut(BaseModel):
     document_title: str
     chunk_id: UUID
     snippet: str
+    classification: str
 
 
 class MessageOut(BaseModel):

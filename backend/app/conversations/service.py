@@ -35,6 +35,7 @@ class StoredCitation:
     document_title: str
     chunk_id: UUID
     snippet: str
+    classification: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +83,7 @@ def _visible(conn: Connection, ctx: AuthContext, rows: list[Any]) -> list[Stored
                     document_title=readable[chunk_id].document_title,
                     chunk_id=chunk_id,
                     snippet=make_snippet(readable[chunk_id].content),
+                    classification=readable[chunk_id].acl.classification.value,
                 )
                 for index, chunk_id in enumerate(row.cited_chunk_ids)
             ]

@@ -20,7 +20,7 @@ def test_login_returns_identity_and_permission_hints(
     body = r.json()
     assert body["user"] == {"id": str(user_id), "email": email, "role": "manager"}
     assert body["tenant"] == {"id": str(tenant_id), "slug": slug, "name": "Acme"}
-    assert body["permissions"] == ["document.upload", "rag.query", "tenant.read"]
+    assert body["permissions"] == ["document.upload", "rag.query", "tenant.read", "user.directory"]
 
 
 def test_me_returns_the_current_identity(owner_engine: Engine, database_urls: DatabaseUrls) -> None:

@@ -117,13 +117,19 @@ def test_authorize_returns_none_when_allowed() -> None:
 
 def test_permission_hints_per_role() -> None:
     assert permissions(Role.MEMBER) == ["rag.query", "tenant.read"]
-    assert permissions(Role.MANAGER) == ["document.upload", "rag.query", "tenant.read"]
+    assert permissions(Role.MANAGER) == [
+        "document.upload",
+        "rag.query",
+        "tenant.read",
+        "user.directory",
+    ]
     assert permissions(Role.ADMIN) == [
         "audit.read",
         "document.upload",
         "rag.query",
         "tenant.read",
         "tenant.update",
+        "user.directory",
         "user.manage",
     ]
 
@@ -136,6 +142,7 @@ def test_permission_hints_agree_with_policy(role: Role) -> None:
         Action.USER_MANAGE,
         Action.AUDIT_READ,
         Action.QUERY,
+        Action.USER_DIRECTORY,
     ):
         assert (str(action) in permissions(role)) is is_allowed(ctx(role), action)
 
