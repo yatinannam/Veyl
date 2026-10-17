@@ -128,3 +128,45 @@
     @apply font-sans;
   }
 }
+/* Veyl tokens. One colour per classification level, following document-marking
+   convention; used for bands beside documents and citations and the clearance meter. */
+:root {
+  --background: #f6f7f9;
+  --foreground: #1b2430;
+  --card: #ffffff;
+  --card-foreground: #1b2430;
+  --popover: #ffffff;
+  --popover-foreground: #1b2430;
+  --primary: #2f5d8a;
+  --primary-foreground: #ffffff;
+  --secondary: #e9edf2;
+  --secondary-foreground: #1b2430;
+  --muted: #eef1f4;
+  --muted-foreground: #5a6676;
+  --accent: #e3ebf3;
+  --accent-foreground: #1b2430;
+  --destructive: #a23b4b;
+  --border: #d9dee5;
+  --input: #c4ccd6;
+  --ring: #2f5d8a;
+  --radius: 0.5rem;
+  --class-public: #4e8f6b;
+  --class-internal: #3d6fb4;
+  --class-confidential: #b7791f;
+  --class-restricted: #a23b4b;
+}
+
+@theme inline {
+  --color-class-public: var(--class-public);
+  --color-class-internal: var(--class-internal);
+  --color-class-confidential: var(--class-confidential);
+  --color-class-restricted: var(--class-restricted);
+  --font-serif: var(--font-serif);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

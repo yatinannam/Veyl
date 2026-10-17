@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5, Task 2: frontend foundations
+
+**Done** — design tokens (cool paper background, slate ink, steel-blue actions, one colour per classification level) and fonts (IBM Plex Sans for the interface, Source Serif 4 for answers); typed same-origin API client that echoes the CSRF cookie and turns error envelopes into `ApiError`; `useApi` loader; plain-language error messages; `SessionProvider` (loads `/auth/me`, redirects to `/login` on 401); classification band, badge, and clearance meter; native form primitives; `proxy.ts` redirect for requests without a session cookie. Test setup now cleans up renders between tests (Vitest globals are off, so Testing Library could not register its own cleanup). 10 frontend tests.
+**Next** — sign-in page and app shell (Task 3).
+
 ## 2026-10-17 — Phase 5, Task 1: people directory and citation classification
 
 **Done** — `GET /users/directory` (new `user.directory` action for managers and admins; active users in the caller's tenant only) so document owners can pick people to share with; every citation in `/query` and conversation views now carries the chunk's `classification`, so the UI can mark it. 302 backend tests green.
