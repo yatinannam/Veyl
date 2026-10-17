@@ -6,21 +6,13 @@ import { useState } from "react";
 import { ErrorText, Field, Input, Select } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { buildAuditQuery, EVENT_LABELS, NO_FILTERS, type AuditFilters } from "@/lib/audit";
+import { buildAuditQuery, EVENT_LABELS, eventDetail, NO_FILTERS, type AuditFilters } from "@/lib/audit";
 import { formatDateTime } from "@/lib/format";
 import { describeError } from "@/lib/messages";
 import type { AuditEvent, AuditPage, UserInfo } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 
 const DECISION_LABEL = { allow: "Allowed", deny: "Denied", error: "Failed" } as const;
-
-function summary(event: AuditEvent): string {
-  if (event.event_type === "rag.query") {
-    return `${event.result_count ?? 0} passages from ${event.retrieved_document_ids.length} documents`;
-  }
-  const reason = event.details["reason"] ?? event.details["error"];
-  return typeof reason === "string" ? reason.replaceAll("_", " ") : "";
-}
 
 interface OlderPages {
   query: string;
@@ -129,7 +121,7 @@ export default function AuditPageView() {
                 <td className="px-4 py-2.5">
                   {event.actor_user_id ? (emails.get(event.actor_user_id) ?? "Former member") : "System"}
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{summary(event)}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{eventDetail(event)}</td>
                 <td className="px-4 py-2.5 text-muted-foreground" title={event.trace_id ?? undefined}>
                   {event.trace_id ? event.trace_id.slice(0, 8) : ""}
                 </td>

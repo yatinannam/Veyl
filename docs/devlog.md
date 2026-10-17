@@ -2,6 +2,24 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5 complete: dashboard
+
+**Summary** — sign-in, Ask with cited answers and conversations, Documents with clearance-aware upload and sharing, People and Audit log for admins. The UI decides nothing about access; it shows what `/auth/me` hints at and explains API errors in plain words.
+
+**End-to-end check (real model)** — rebuilt the stack without the stand-in, provisioned a local Northwind workspace (admin, manager, two members), uploaded four documents (public, internal, confidential, restricted), and drove the UI with Playwright. The admin's hotel and flight question was answered from *Travel policy* with a citation; the member's question about salary bands got "nothing found" with no model call, and the audit log shows it as 0 passages from 0 documents. The member's document list shows only the public and internal documents.
+
+**Screenshot review found and fixed**
+- Answers showed the model's Markdown (`**bold**`) as raw symbols: answers now render a small Markdown subset as text (D-047). Test RED to GREEN.
+- Source snippets began with `#`: heading markers are dropped from snippets. Test RED to GREEN.
+- The audit detail read "1 passages from 1 documents": correct plurals (`eventDetail`). Test RED to GREEN.
+- The documents table rendered empty while loading: it now says "Loading documents".
+- On phones, short pages stretched the navigation block: the shell's grid rows are `auto 1fr`.
+- The screenshot script captured tables before their rows loaded: it now waits for rows.
+
+**CI** — the Compose smoke job checks `/login` (200), `/chat` without a session (307 to sign-in), and `/chat` with one (200), all through the edge.
+**Decisions** — D-043 to D-047. 32 frontend tests, 302 backend tests.
+**Next** — whole-phase review, then Phase 6 (demo seed, security docs, README polish).
+
 ## 2026-10-17 — Phase 5, Task 6: People and audit log
 
 **Done** — `/admin/users`: add a person (email, temporary password, role), change role, deactivate or reactivate; your own row is read-only. `/admin/audit`: filters for event, person, and date range (whole days in UTC), plain-language event names, outcome, actor email, short detail (passages and documents for questions, reason otherwise), short trace id; keyset pagination with "Show older events". Ruling: the plan loaded the first page from an effect, which the React lint rule rejects (`set-state-in-effect`); the first page now comes from `useApi` keyed on the filter query, and older pages are kept only while they belong to the same query. 28 frontend tests.

@@ -15,8 +15,8 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
-| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | In progress (6/7 tasks) |
-| 6 | Security test suite, demo, docs | Planned |
+| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
+| 6 | Security test suite, demo, docs | Next |
 
 ## Quickstart
 
@@ -135,6 +135,28 @@ How it talks to the API:
 - Documents (`/documents`): the documents you can read with classification, processing status (refreshed every 3 seconds while anything is queued or processing), and date. Managers and admins upload with a classification picker that only offers levels they are cleared for, choose roles, and share with named colleagues; the uploader and admins edit permissions or delete from the document page.
 - People (`/admin/users`, admins): add people with a temporary password, change roles, deactivate or reactivate (never yourself). Audit log (`/admin/audit`, admins): filter by event, person, and date range; newest first with "Show older events"; each row shows the outcome, a short detail, and the trace id.
 - Classification levels each have one colour (public sage, internal blue, confidential amber, restricted oxblood), always shown next to the level's name.
+
+## Using the dashboard
+
+Open http://127.0.0.1:3000 after `docker compose up` and sign in with the workspace, email, and password from [provisioning](#provisioning-a-tenant).
+
+| Sign in | Ask, with sources |
+|---|---|
+| ![Sign-in page with the four classification levels](docs/screenshots/login.png) | ![An answer with a superscript source number and an Internal source card](docs/screenshots/ask.png) |
+
+| Documents (admin) | The same list for a member |
+|---|---|
+| ![Four documents, one per classification level](docs/screenshots/documents.png) | ![Only the public and internal documents](docs/screenshots/member-documents.png) |
+
+| A member asks about restricted content | Who can read a document |
+|---|---|
+| ![The member gets "nothing found"; the model is not called](docs/screenshots/member-ask.png) | ![Permission editor with classification, roles, and people](docs/screenshots/document.png) |
+
+| People (admin) | Audit log (admin) |
+|---|---|
+| ![People list with roles and access](docs/screenshots/people.png) | ![Audit log with filters, outcomes, and trace ids](docs/screenshots/audit.png) |
+
+Screenshots are produced from a running stack with `pnpm screenshots` in `frontend/` (see `frontend/scripts/screenshots.mjs` for the environment variables).
 
 ## Authorization model
 

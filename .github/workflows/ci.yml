@@ -68,6 +68,11 @@ jobs:
         run: |
           curl -fsS -c jar.txt -H 'Content-Type: application/json'             -d '{"tenant_slug":"smoke","email":"admin@smoke.test","password":"smoke-test-password"}'             http://127.0.0.1:3000/api/v1/auth/login
           curl -fsS -b jar.txt http://127.0.0.1:3000/api/v1/auth/me
+      - name: Dashboard pages render through the edge
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)" = "200"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/chat)" = "307"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b jar.txt http://127.0.0.1:3000/chat)" = "200"
       - name: Upload and ingest a document
         run: sh docker/smoke/ingest.sh http://127.0.0.1:3000 jar.txt
       - name: Ask a question and get a cited answer

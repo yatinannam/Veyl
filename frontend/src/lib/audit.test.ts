@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAuditQuery, EVENT_LABELS } from "./audit";
+import { buildAuditQuery, EVENT_LABELS, eventDetail } from "./audit";
 
 describe("buildAuditQuery", () => {
   it("includes only the filters that are set", () => {
@@ -21,5 +21,41 @@ describe("buildAuditQuery", () => {
   it("names every event type in plain words", () => {
     expect(EVENT_LABELS["rag.query"]).toBe("Question asked");
     expect(Object.keys(EVENT_LABELS)).toContain("audit.viewed");
+  });
+});
+
+describe("eventDetail", () => {
+  const base = {
+    id: "e1",
+    occurred_at: "2026-10-17T12:00:00Z",
+    actor_user_id: "u1",
+    decision: "allow" as const,
+    query_ref: null,
+    query_text: null,
+    retrieved_chunk_ids: [],
+    trace_id: null,
+    model: null,
+    details: {},
+  };
+
+  it("counts passages and documents with correct plurals", () => {
+    expect(
+      eventDetail({ ...base, event_type: "rag.query", result_count: 1, retrieved_document_ids: ["d1"] }),
+    ).toBe("1 passage from 1 document");
+    expect(
+      eventDetail({ ...base, event_type: "rag.query", result_count: 3, retrieved_document_ids: ["d1", "d2"] }),
+    ).toBe("3 passages from 2 documents");
+  });
+
+  it("explains other events by their reason", () => {
+    expect(
+      eventDetail({
+        ...base,
+        event_type: "rag.denied",
+        result_count: null,
+        retrieved_document_ids: [],
+        details: { reason: "conversation_not_found" },
+      }),
+    ).toBe("conversation not found");
   });
 });

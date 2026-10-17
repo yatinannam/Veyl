@@ -39,11 +39,13 @@ export default function DocumentsPage() {
         ) : null}
       </div>
       <ErrorText>{documents.error ? describeError(documents.error) : null}</ErrorText>
-      {rows.length === 0 && !documents.loading ? (
+      {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {can("document.upload")
-            ? "Nothing here yet. Upload a document to make it searchable."
-            : "No documents have been shared with you yet."}
+          {documents.loading
+            ? "Loading documents"
+            : can("document.upload")
+              ? "Nothing here yet. Upload a document to make it searchable."
+              : "No documents have been shared with you yet."}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card">

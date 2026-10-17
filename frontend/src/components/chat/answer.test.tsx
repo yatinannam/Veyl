@@ -47,4 +47,32 @@ describe("Answer", () => {
     render(<Answer content="I could not find that." citations={[]} idPrefix="m3" />);
     expect(screen.queryByRole("list", { name: "Sources" })).not.toBeInTheDocument();
   });
+
+  it("renders the model's bold text and bullet lists without Markdown symbols", () => {
+    render(
+      <Answer
+        content={"**Economy** only [S1].\n\n- Hotels up to **260 USD**\n- Book early"}
+        citations={citations}
+        idPrefix="m4"
+      />,
+    );
+    expect(screen.getByText("Economy").tagName).toBe("STRONG");
+    expect(screen.getByText("260 USD").tagName).toBe("STRONG");
+    expect(screen.getByText("Book early").tagName).toBe("LI");
+    expect(screen.queryByText(/\*\*/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Source 1: Travel policy" })).toBeInTheDocument();
+  });
+});
+
+describe("Answer snippets", () => {
+  it("hides Markdown heading markers in source snippets", () => {
+    render(
+      <Answer
+        content="Economy only [S1]."
+        citations={[{ ...citations[0], snippet: "# Travel policy Employees may book economy flights." }]}
+        idPrefix="m5"
+      />,
+    );
+    expect(screen.getByText("Travel policy Employees may book economy flights.")).toBeInTheDocument();
+  });
 });

@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const clearance = CLEARANCE[me.user.role];
 
   return (
-    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[13rem_minmax(0,1fr)]">
+    <div className="grid min-h-screen grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1">
       <aside className="border-b border-border bg-card md:border-r md:border-b-0">
         <div className="px-5 pt-5 pb-3">
           <p className="text-lg font-semibold tracking-tight">Veyl</p>

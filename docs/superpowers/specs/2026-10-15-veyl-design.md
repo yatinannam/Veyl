@@ -548,7 +548,7 @@ Veyl/
 | 2 | Schema + migrations + RLS + auth + authz | RLS, auth, and authz tests pass |
 | 3 | Upload, worker ingestion, chunk ACL, embeddings, filtered retrieval, cache | Retrieval security tests (#1, #2, #4-#7) pass; done 2026-10-16 |
 | 4 | LLM client, prompt builder, citations, conversations, audit | Tests #3, #8, #9 + T12-T14 pass; done 2026-10-16 |
-| 5 | Frontend dashboard | All pages working against real API |
+| 5 | Frontend dashboard | All pages working against real API; done 2026-10-17 |
 | 6 | Demo seed, docs (architecture, threat model, API, demo), README polish | Fresh clone → demo works by following README |
 
 ## 14. Demo scenario (Phase 6)

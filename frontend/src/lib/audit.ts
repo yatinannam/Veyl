@@ -1,3 +1,5 @@
+import type { AuditEvent } from "./types";
+
 export const EVENT_LABELS: Record<string, string> = {
   "rag.query": "Question asked",
   "rag.denied": "Question refused",
@@ -35,4 +37,17 @@ export function buildAuditQuery(filters: AuditFilters, cursor?: string | null): 
   if (cursor) params.set("cursor", cursor);
   params.set("limit", "50");
   return params.toString();
+}
+
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+/** A short, plain description of what an event involved. */
+export function eventDetail(event: AuditEvent): string {
+  if (event.event_type === "rag.query") {
+    return `${plural(event.result_count ?? 0, "passage")} from ${plural(event.retrieved_document_ids.length, "document")}`;
+  }
+  const reason = event.details["reason"] ?? event.details["error"];
+  return typeof reason === "string" ? reason.replaceAll("_", " ") : "";
 }
