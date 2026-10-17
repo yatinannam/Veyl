@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-17 — Phase 5 plan written
+
+**Done** — [Phase 5 plan](superpowers/plans/2026-10-17-phase-5-dashboard.md): 7 tasks. Backend additions (people directory for sharing, classification on citations); frontend foundations (design tokens, IBM Plex Sans and Source Serif 4, typed API client with CSRF, session provider, `proxy.ts` redirect); sign-in and app shell; Ask with cited answers; Documents with clearance-aware sharing; People and audit log for admins; screenshots and review. Design direction: classification bands (public sage, internal blue, confidential amber, restricted oxblood) are the one bold element on a quiet, light interface.
+**Next** — execute Task 1.
+
 ## 2026-10-16 — Phase 4 review: fixes and deferred items
 
 **Review** — independent whole-phase review: no Critical, 3 Important, 8 Minor. No path found that sends unauthorized content to the model or the user for cited content.
