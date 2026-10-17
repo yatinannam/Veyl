@@ -178,7 +178,7 @@ Tests use a deterministic fake embedder; one test runs the real model (skip it o
 1. If a `conversation_id` is given, it must be yours (otherwise 404, audited as `rag.denied`). Earlier turns are re-authorized: an answer built from anything you can no longer read (cited or not) is replaced before it reaches the model, and hidden in the conversation view too.
 2. Permission-filtered retrieval (above). If nothing you can read is relevant enough (`RETRIEVAL_MIN_SCORE`, default 0.5), you get "I could not find anything about that..." and **the model is never called**.
 3. Otherwise the model sees only your authorized chunks, framed as untrusted sources, plus your re-authorized history.
-4. Citations are verified on the server, renumbered `S1..Sn` in order of first use, and returned with document id, title, chunk id, and a short snippet; reopening a conversation returns the same citations.
+4. Citations are verified on the server, renumbered `S1..Sn` in order of first use, and returned with document id, title, chunk id, classification, and a short snippet; reopening a conversation returns the same citations.
 5. The exchange is stored in your conversation and audited (`rag.query`: chunk and document ids, result count, model, trace id; the question only as a keyed hash unless the tenant opts into plaintext).
 
 Failures fail closed: embedding or database problems give `503 service_unavailable`, an LLM failure gives `503 llm_unavailable`, and an internal authorization disagreement gives `500 authorization_mismatch`. Nothing is stored for a failed question, and the failure is audited.
