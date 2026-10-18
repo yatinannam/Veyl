@@ -16,7 +16,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (4/7 tasks) |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (5/7 tasks) |
 
 ## Quickstart
 
@@ -154,6 +154,7 @@ How it talks to the API:
 - Ask (`/chat`): questions and answers in a conversation list; answers are set in a serif face with superscript source numbers that jump to source cards (title, classification, snippet, link to the document). Markers the server did not verify are dropped rather than shown as broken links.
 - Documents (`/documents`): the documents you can read with classification, processing status (refreshed every 3 seconds while anything is queued or processing), and date. Managers and admins upload with a classification picker that only offers levels they are cleared for, choose roles, and share with named colleagues; the uploader and admins edit permissions or delete from the document page.
 - People (`/admin/users`, admins): add people with a temporary password, change roles (a role change applies only when you press "Save role"), deactivate or reactivate (never yourself). Audit log (`/admin/audit`, admins): filter by event, person, and date range; newest first with "Show older events"; each row shows the outcome, a short detail, and the trace id.
+- Motion is limited to three moments (the sign-in levels, a new answer's source cards, the clearance meter), uses GSAP, lasts 350 ms, and is switched off entirely when the system asks for reduced motion.
 - Classification levels each have one colour (public sage, internal blue, confidential amber, restricted oxblood), always shown next to the level's name.
 
 ## Using the dashboard

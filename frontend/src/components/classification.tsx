@@ -1,4 +1,7 @@
+"use client";
+
 import { cn } from "cn";
+import { useRef } from "react";
 
 import {
   CLASSIFICATION_LABEL,
@@ -6,6 +9,7 @@ import {
   classificationRank,
   type Classification,
 } from "@/lib/types";
+import { useReveal } from "@/lib/motion";
 
 const FILL: Record<Classification, string> = {
   public: "bg-class-public",
@@ -38,8 +42,11 @@ export function ClassificationBadge({ level }: { level: Classification }) {
 
 /** Four segments, filled up to the reader's clearance. */
 export function ClearanceMeter({ level }: { level: Classification }) {
+  const meter = useRef<HTMLSpanElement>(null);
+  useReveal(meter, "[data-segment]", { scaleX: 0, transformOrigin: "left center" }, { stagger: 0.05 });
   return (
     <span
+      ref={meter}
       role="img"
       aria-label={`Clearance: up to ${CLASSIFICATION_LABEL[level]}`}
       className="flex items-center gap-0.5"
@@ -47,6 +54,7 @@ export function ClearanceMeter({ level }: { level: Classification }) {
       {CLASSIFICATIONS.map((step) => (
         <span
           key={step}
+          data-segment
           className={cn(
             "h-1.5 w-5 rounded-full",
             classificationRank(step) <= classificationRank(level) ? FILL[step] : "bg-border",

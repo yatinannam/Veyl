@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 5: motion
+
+**Done** — `useReveal` (GSAP `useGSAP` + `gsap.matchMedia`): the sign-in panel's four levels appear in order, a newly arrived answer's source cards slide in one after another (reopened history does not animate), and the clearance meter fills once. 350 ms tweens that clear their inline styles; nothing at all under `prefers-reduced-motion: reduce` or without `matchMedia`. Verified in Chromium: with motion, items start transparent and settle at full opacity with no leftover styles; with reduced motion everything is visible on the first frame and no transform is applied. Lenis considered and not used for app screens (D-051). Decisions D-050, D-051. 55 frontend tests.
+**Next** — documentation (Task 6).
+
 ## 2026-10-18 — Phase 6, Task 4: dashboard polish
 
 **Done** (each with a test that failed first) — the eight user-facing minors deferred from the Phase 5 review:

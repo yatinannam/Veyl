@@ -22,6 +22,8 @@ export default function AskPage() {
   const [error, setError] = useState<string | null>(null);
   const messages = activeId ? (detail.data?.messages ?? []) : [];
   const asking = pending !== null && !pending.answered;
+  // Only the answer that just arrived animates; reopened history appears as it is.
+  const latestAnswerId = pending?.answered ? messages.findLast((m) => m.role === "assistant")?.id : undefined;
   const shownPending = pending !== null && (asking || detail.loading) ? pending.question : null;
   const loadError = detail.error ?? conversations.error;
 
@@ -104,7 +106,12 @@ export default function AskPage() {
               </div>
             ) : (
               <article key={message.id} className="max-w-2xl">
-                <Answer content={message.content} citations={message.citations} idPrefix={message.id} />
+                <Answer
+                  content={message.content}
+                  citations={message.citations}
+                  idPrefix={message.id}
+                  animate={message.id === latestAnswerId}
+                />
               </article>
             ),
           )}

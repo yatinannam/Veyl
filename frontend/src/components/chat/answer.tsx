@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, useRef } from "react";
 
 import { ClassificationBadge, ClassificationBand } from "@/components/classification";
+import { useReveal } from "@/lib/motion";
 import type { Citation } from "@/lib/types";
 
 const MARKER = /^\[(S\d+)\]$/;
@@ -44,11 +47,16 @@ export function Answer({
   content,
   citations,
   idPrefix,
+  animate = false,
 }: {
   content: string;
   citations: Citation[];
   idPrefix: string;
+  /** Slide the source cards in, for an answer that has just arrived. */
+  animate?: boolean;
 }) {
+  const sources = useRef<HTMLUListElement>(null);
+  useReveal(sources, "li", { y: 6 }, { enabled: animate });
   const byLabel = new Map(citations.map((c) => [c.label, c]));
 
   function markers(text: string, keyPrefix: string) {
@@ -112,7 +120,7 @@ export function Answer({
         )}
       </div>
       {citations.length > 0 ? (
-        <ul aria-label="Sources" className="space-y-2">
+        <ul ref={sources} aria-label="Sources" className="space-y-2">
           {citations.map((citation) => (
             <li
               key={citation.label}

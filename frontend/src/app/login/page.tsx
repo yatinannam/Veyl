@@ -1,13 +1,5 @@
-import { ClassificationBand } from "@/components/classification";
+import { ClassificationLevels } from "@/components/classification-levels";
 import { LoginForm } from "@/components/login-form";
-import { CLASSIFICATION_LABEL, type Classification } from "@/lib/types";
-
-const LEVELS: { level: Classification; readers: string }[] = [
-  { level: "restricted", readers: "Admins only" },
-  { level: "confidential", readers: "Managers and admins" },
-  { level: "internal", readers: "Everyone in the workspace who is granted access" },
-  { level: "public", readers: "Anyone granted access, with no sensitive content" },
-];
 
 export default function LoginPage() {
   return (
@@ -18,17 +10,7 @@ export default function LoginPage() {
           <p className="font-serif text-3xl leading-snug">
             Answers from your company&apos;s documents, never beyond what you are cleared to read.
           </p>
-          <ul aria-label="Classification levels" className="space-y-4">
-            {LEVELS.map(({ level, readers }) => (
-              <li key={level} className="flex gap-3">
-                <ClassificationBand level={level} className="w-1.5" />
-                <div>
-                  <p className="font-medium">{CLASSIFICATION_LABEL[level]}</p>
-                  <p className="text-sm opacity-75">{readers}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ClassificationLevels />
         </div>
         <p className="max-w-md text-sm opacity-75">
           Every question is checked against document permissions before any text reaches the
