@@ -10,6 +10,7 @@ from app.auth.deps import CurrentUser, EngineDep, require_csrf
 from app.authz import Action, authorize
 from app.db.schema import tenants
 from app.db.tenancy import tenant_transaction
+from app.text import SafeText
 
 router = APIRouter(prefix="/tenant", tags=["tenant"])
 
@@ -26,7 +27,7 @@ class TenantOut(BaseModel):
 class TenantUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str | None = Field(default=None, min_length=1, max_length=200)
+    name: SafeText | None = Field(default=None, min_length=1, max_length=200)
     audit_query_mode: AuditQueryMode | None = None
 
     @model_validator(mode="after")

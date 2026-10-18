@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Hardening, Batch A: NUL bytes and invalid text
+
+**Done** — a shared `SafeText` type rejects NUL characters in sign-in fields, upload titles, questions, new users' emails, and workspace names, so they get `422 validation_error` instead of a 500 from inside a database call (P2-5, P3-3). Extracted document text has NUL characters removed and lone surrogates replaced, so such PDFs ingest instead of failing three times as "transient" (P3-2). Tests RED to GREEN.
+**Next** — Batch B (authentication and administration).
+
 ## 2026-10-18 — Hardening plan: every deferred review item triaged
 
 **Done** — [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md): all deferred findings from the six phase reviews listed with a verdict. 12 were already fixed in later phases; 3 stay open with reasons (prettier and coverage tooling, pinning the embedding revision beyond `uv.lock` and the baked image, a chunk-ACL trigger that would duplicate `acl_version` and the Python re-check); the rest are fixed in six batches (input hardening, authentication, answering, ingestion, platform, dashboard and demo).

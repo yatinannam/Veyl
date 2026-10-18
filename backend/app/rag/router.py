@@ -10,6 +10,7 @@ from app.config import Settings
 from app.llm.client import LLMClient
 from app.rag import service
 from app.retrieval.embeddings import Embedder
+from app.text import SafeText
 
 router = APIRouter(tags=["query"])
 
@@ -17,7 +18,7 @@ router = APIRouter(tags=["query"])
 class QueryRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    question: str = Field(min_length=1, max_length=2000)
+    question: SafeText = Field(min_length=1, max_length=2000)
     conversation_id: UUID | None = None
 
     @field_validator("question")

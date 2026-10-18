@@ -10,6 +10,7 @@ from app.authz import AuthContext, Classification, Role
 from app.documents import service
 from app.documents.storage import LocalStorage
 from app.documents.validation import validate_upload
+from app.text import SafeText
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -70,7 +71,7 @@ def upload_document(
     settings: SettingsDep,
     request: Request,
     file: Annotated[UploadFile, File()],
-    title: Annotated[str, Form(min_length=1, max_length=300)],
+    title: Annotated[SafeText, Form(min_length=1, max_length=300)],
     classification: Annotated[Classification, Form()],
     allowed_roles: Annotated[list[Role] | None, Form()] = None,
     allowed_user_ids: Annotated[list[UUID] | None, Form()] = None,

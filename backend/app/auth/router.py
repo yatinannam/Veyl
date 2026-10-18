@@ -16,6 +16,7 @@ from app.auth.deps import (
 from app.auth.passwords import MAX_PASSWORD_LENGTH
 from app.authz import Role, permissions
 from app.config import Settings
+from app.text import SafeText
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -23,8 +24,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class LoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    tenant_slug: str = Field(min_length=2, max_length=80)
-    email: str = Field(min_length=3, max_length=320)
+    tenant_slug: SafeText = Field(min_length=2, max_length=80)
+    email: SafeText = Field(min_length=3, max_length=320)
     password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
 
 

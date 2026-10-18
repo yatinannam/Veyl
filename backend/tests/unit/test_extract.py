@@ -3,6 +3,7 @@ import time
 import pytest
 
 from app.ingestion.extract import ExtractionError, extract_text, extract_text_isolated
+from app.text import clean_text
 from tests.fakes import encrypt_pdf, make_heavy_pdf, make_pdf
 
 
@@ -76,3 +77,13 @@ def test_pathological_pdf_is_stopped_by_the_time_limit() -> None:
 def test_documents_with_too_much_text_are_rejected() -> None:
     with pytest.raises(ExtractionError, match="too much text"):
         _isolated("txt", b"word " * 1000, max_chars=100)
+
+
+def test_clean_text_removes_nul_and_replaces_lone_surrogates() -> None:
+    assert clean_text("a\x00b\ud800c") == "ab�c"
+
+
+def test_pdf_text_with_nul_bytes_is_cleaned_not_rejected() -> None:
+    text = extract_text("pdf", make_pdf(["Hello\x00World"]), max_pdf_pages=5)
+    assert "\x00" not in text
+    assert "Hello" in text

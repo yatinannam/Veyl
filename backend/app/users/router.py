@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.auth.deps import CurrentUser, EngineDep, require_csrf
 from app.auth.passwords import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
 from app.authz import Role
+from app.text import SafeText
 from app.users import service
 from app.users.service import UserRecord
 
@@ -24,7 +25,7 @@ class UserOut(BaseModel):
 class UserCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
+    email: SafeText = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
     password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)
     role: Role
 

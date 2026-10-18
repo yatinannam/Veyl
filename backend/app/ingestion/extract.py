@@ -6,6 +6,8 @@ from multiprocessing.connection import Connection
 
 from pypdf import PdfReader
 
+from app.text import clean_text
+
 _TEXT_KINDS = frozenset({"txt", "md"})
 
 
@@ -109,6 +111,7 @@ def _pdf_text(data: bytes, max_pages: int) -> str:
     if page_count > max_pages:
         raise ExtractionError(f"PDF has more than {max_pages} pages")
     try:
-        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+        # PDF text can carry NUL characters or lone surrogates that Postgres cannot store.
+        return clean_text("\n\n".join(page.extract_text() or "" for page in reader.pages))
     except Exception as exc:
         raise ExtractionError("file is not a readable PDF") from exc
