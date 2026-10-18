@@ -16,7 +16,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Security test suite, demo, docs | Next |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (0/7 tasks) |
 
 ## Quickstart
 

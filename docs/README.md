@@ -10,5 +10,6 @@
 | [superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md](superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md) | Phase 3 plan: documents, ingestion, embeddings, filtered retrieval |
 | [superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md](superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md) | Phase 4 plan: LLM answers, citations, conversations, audit log |
 | [superpowers/plans/2026-10-17-phase-5-dashboard.md](superpowers/plans/2026-10-17-phase-5-dashboard.md) | Phase 5 plan: dashboard (sign-in, ask, documents, people, audit log) |
+| [superpowers/plans/2026-10-18-phase-6-demo-docs.md](superpowers/plans/2026-10-18-phase-6-demo-docs.md) | Phase 6 plan: two-company demo, demo scenario as a security test, docs, motion |
 
 Added in later phases: `architecture.md`, `threat-model.md`, `api.md`, `demo.md`.
