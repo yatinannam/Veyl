@@ -6,7 +6,8 @@ Newest entries first. Each entry: what was done, what's next, anything blocked.
 
 **Done** (tests RED to GREEN unless noted)
 - *P4-1:* any exception from the model call, not only the client's own `LLMError` (for example `RecursionError` from a pathological provider response), returns `503 llm_unavailable` and is audited with stage `llm`.
-- *P4-2:* delimiter neutralisation removes invisible characters (zero-width space, joiners, word joiner, BOM) and applies NFKC before escaping, so a zero-width space inside `<source`, or a fullwidth `<` or fullwidth letters, are neutralised like the real thing. - *P4-3:* source markers are stripped from replayed history (an old `[S1]` referred to an earlier turn's sources). The history test's expectation changed accordingly.
+- *P4-2:* delimiter neutralisation removes invisible characters (zero-width space, joiners, word joiner, BOM) and applies NFKC before escaping, so a zero-width space inside `<source`, or a fullwidth `<` or fullwidth letters, are neutralised like the real thing.
+- *P4-3:* source markers are stripped from replayed history (an old `[S1]` referred to an earlier turn's sources). The history test's expectation changed accordingly.
 - *P4-5:* the LLM timeout is now also a total deadline for the response body; a provider trickling bytes is cut off after the timeout instead of holding a worker for minutes.
 - *P4-6:* the conversation is re-checked under a row lock when the exchange is stored; if it was deleted while the model was answering, the result is `404` and a `rag.denied` audit record (`conversation_deleted`) instead of a 500.
 - *P4-8:* `rag.denied` details include the conversation id that was named.
