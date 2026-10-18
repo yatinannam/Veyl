@@ -33,6 +33,23 @@ def test_resolve_citations_deduplicates_and_renumbers_by_first_appearance() -> N
     assert resolved.text == "A [S1]. B [S2]. C [S1][S2]."
 
 
+def test_resolve_citations_accepts_the_marker_styles_models_actually_write() -> None:
+    # Seen live from openai/gpt-oss-120b: CJK lenticular brackets, sometimes with a
+    # line reference after a dagger; also fullwidth brackets and grouped labels.
+    sources = _sources(3)
+    answer = (
+        "Revenue was 18.4 million USD【S1】. "
+        "Cash was 42.7 million【S2†L3-L5】. "
+        "Margins held ［S1］, see [S3, S2]; ignore 【S9】."  # noqa: RUF001
+    )
+    resolved = resolve_citations(answer, sources)
+    assert [s.chunk for s in resolved.cited] == [s.chunk for s in sources]
+    assert resolved.text == (
+        "Revenue was 18.4 million USD[S1]. Cash was 42.7 million[S2]. "
+        "Margins held [S1], see [S3][S2]; ignore ."
+    )
+
+
 def test_resolve_citations_without_markers_cites_nothing() -> None:
     resolved = resolve_citations("I could not find that.", _sources(2))
     assert resolved.cited == []

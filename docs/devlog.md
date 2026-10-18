@@ -2,6 +2,16 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 7: fresh clone and live walkthrough found a citation bug
+
+**Fresh clone** — cloned from GitHub into a folder of another name and followed the README: `cp .env.example .env`, new passwords, LLM key, `docker compose up --build -d`, `docker compose run --rm seed`. It built, migrated, seeded, and processed every document. Note: `docker-compose.yml` pins `name: veyl`, so a second checkout shares the first one's Compose project (and its volumes); the check ran with `COMPOSE_PROJECT_NAME=veyl-fresh`, and the README now says how to run a second copy.
+
+**Live walkthrough with Groq (`openai/gpt-oss-120b`)** — every permission outcome matched the demo: Mia never got the financials, Gary saw no documents and no Acme answers, the roadmap reached Mia after the reclassification and disappeared after the revert, Mark's review reached Mark and not Mia, the audit log held Mia's eight questions with counts and no text.
+
+**Bug found and fixed** — Alice's and Mark's answers lost their citations: the model wrote markers as CJK lenticular brackets (`【S1】`, sometimes `【S2†L3-L5】`), which the server did not recognise, so it removed them and returned no source cards. CI could not catch it because the stand-in always writes `[S1]`. The parser now reads `[S1]`, `[S1, S3]`, fullwidth brackets, and lenticular brackets with an optional line reference, and stores `[S#]`. Test RED to GREEN; 319 backend tests.
+
+**Docs correction** — Mia's revenue question does reach the model: her readable IT FAQ mentions "the Q3 financials", so it clears the relevance threshold; the model finds no figures. `demo.md` step 1 now says so.
+
 ## 2026-10-18 — Phase 6, Task 6: documentation
 
 **Done** — `docs/architecture.md` (components and trust boundaries, identity per request, where each permission check lives, ingestion and query pipelines, data model summary, code map); `docs/threat-model.md` (assets, actors, boundaries, T1 to T17 each mapped to real test files and test names, verified by a script that every referenced file and test exists; known limitations; open review items); `docs/api.md` (every endpoint, who may call it, curl examples with responses captured from a running stack, error codes, audit event types); `docs/demo.md` (seeding, who can read what, a seven-step walkthrough with expected results, the same checks with curl, reset). README rewritten to lead with the guarantee and a four-command quickstart with the demo; the long technical sections moved into the docs (details only the README held were added to `architecture.md` first).

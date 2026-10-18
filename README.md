@@ -41,6 +41,8 @@ Open http://127.0.0.1:3000 and sign in to workspace `acme` as `alice@acme.test` 
 
 **Reset** everything, including the database and uploads: `docker compose down -v`.
 
+**A second copy** of the repository on the same machine would share the first one's Compose project (`name: veyl`) and data. Give it its own: `COMPOSE_PROJECT_NAME=veyl-copy docker compose up --build -d`.
+
 | Service | What it does | Address |
 |---|---|---|
 | `edge` | Caddy, the only public entry point; overwrites `X-Forwarded-For` so client IPs cannot be forged | http://127.0.0.1:3000 |

@@ -34,7 +34,7 @@ Two separate locks apply to every document: the reader's **clearance** (member u
 
 Sign in, ask, then sign out from the header and sign in as the next person.
 
-1. **A member asks about restricted numbers.** Sign in as `mia@acme.test` and ask *"What was Acme's revenue in Q3?"* Expected: Veyl says it found nothing in the documents she can access. The model was not called, because nothing she may read is relevant. Her Documents page lists only the handbook and the IT FAQ, and her header shows a clearance meter filled to internal.
+1. **A member asks about restricted numbers.** Sign in as `mia@acme.test` and ask *"What was Acme's revenue in Q3?"* Expected: no revenue figure and no citation of the board financials. Her IT FAQ mentions "the Q3 financials", so it is relevant enough to be sent to the model, which finds no figures in it; the financials themselves were never retrieved for her. Her Documents page lists only the handbook and the IT FAQ, and her header shows a clearance meter filled to internal.
 
 2. **The admin asks the same question.** Sign in as `alice@acme.test` and ask the same question. Expected: an answer with the revenue (18.4 million USD) and a source card for *Q3 Board Financials* marked Restricted.
 
