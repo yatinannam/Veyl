@@ -16,7 +16,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (2/7 tasks) |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (3/7 tasks) |
 
 ## Quickstart
 
@@ -277,7 +277,7 @@ backend/            FastAPI app (app/), Alembic migrations, pytest suite (unit/ 
 frontend/           Next.js dashboard, Vitest
 docker/postgres/    DB bootstrap: least-privilege roles + extensions (used by Compose AND tests)
 docs/               Spec, plans, decision log, dev log
-.github/workflows/  CI: backend, frontend, full-stack Compose smoke test
+.github/workflows/  CI: backend, frontend, full-stack Compose smoke test (including the seeded demo)
 docker-compose.yml  db → migrate → api → web
 ```
 

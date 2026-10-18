@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 3: CI demo smoke
+
+**Done** — `docker/smoke/demo.sh`: through the edge, Mia's revenue question never cites the board financials, Alice's does, and Gary sees none of Acme's documents and gets no Acme answer. The Compose smoke job now seeds the demo with `docker compose run --rm seed` and runs it (before the login rate-limit probe). Passed locally against a scratch stack with real embeddings and the LLM stand-in.
+**Next** — dashboard polish (Task 4).
+
 ## 2026-10-18 — Phase 6, Task 2: the demo walkthrough as a security test
 
 **Done** — `tests/security/test_demo_scenario.py`, seven tests over the seeded demo, asserting on recorded prompts: member cannot reach the board financials; admin gets them with a `restricted` citation; Globex member sees nothing from Acme; reclassifying the roadmap reaches Mia's next question and the revert removes it from the one after; the injected FAQ instruction appears only as source text and the data it asks for is absent; Mark's review reaches Mark and admins only; the audit trail has Mia's questions as references, not text. Markers are chosen so they occur only in documents, never in questions (first draft had a false failure from a marker inside the question).

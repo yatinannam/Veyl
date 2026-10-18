@@ -77,6 +77,10 @@ jobs:
         run: sh docker/smoke/ingest.sh http://127.0.0.1:3000 jar.txt
       - name: Ask a question and get a cited answer
         run: sh docker/smoke/query.sh http://127.0.0.1:3000 jar.txt
+      - name: Seed the two-company demo through the API
+        run: docker compose run --rm -e VEYL_DEMO_PASSWORD=ci-demo-password seed
+      - name: Demo permissions hold end to end
+        run: sh docker/smoke/demo.sh http://127.0.0.1:3000 ci-demo-password
       - name: Forged X-Forwarded-For cannot evade the per-IP login limit
         run: sh docker/smoke/login-ip-limit.sh http://127.0.0.1:3000 21
       - name: Logs on failure
