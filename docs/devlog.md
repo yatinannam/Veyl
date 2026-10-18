@@ -10,6 +10,8 @@ Newest entries first. Each entry: what was done, what's next, anything blocked.
 
 **Bug found and fixed** — Alice's and Mark's answers lost their citations: the model wrote markers as CJK lenticular brackets (`【S1】`, sometimes `【S2†L3-L5】`), which the server did not recognise, so it removed them and returned no source cards. CI could not catch it because the stand-in always writes `[S1]`. The parser now reads `[S1]`, `[S1, S3]`, fullwidth brackets, and lenticular brackets with an optional line reference, and stores `[S#]`. Test RED to GREEN; 319 backend tests.
 
+**Screenshots** — README screenshots retaken from the demo with the real model (admin and member asking the same revenue question, documents, permissions, people, audit log). The screenshot script now asks the browser for reduced motion, so captures show the settled page rather than a frame of an animation (the first capture caught the sign-in levels half faded in).
+
 **Docs correction** — Mia's revenue question does reach the model: her readable IT FAQ mentions "the Q3 financials", so it clears the relevance threshold; the model finds no figures. `demo.md` step 1 now says so.
 
 ## 2026-10-18 — Phase 6, Task 6: documentation

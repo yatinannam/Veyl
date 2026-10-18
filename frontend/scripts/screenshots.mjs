@@ -11,9 +11,11 @@ const out = new URL("../../docs/screenshots/", import.meta.url);
 await mkdir(out, { recursive: true });
 
 const browser = await chromium.launch();
+// Reduced motion: screenshots show the settled page, never a frame of an animation.
+const VIEW = { viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" };
 
 async function signIn(email, password) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext(VIEW);
   const page = await context.newPage();
   await page.goto(`${base}/login`);
   await page.getByLabel("Workspace").fill(process.env.VEYL_WORKSPACE);
@@ -33,7 +35,7 @@ async function ask(page, question) {
 const shot = (page, name) => page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, out)) });
 const rows = (page) => page.locator("tbody tr").first().waitFor();
 
-const login = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+const login = await (await browser.newContext(VIEW)).newPage();
 await login.goto(`${base}/login`);
 await shot(login, "login");
 

@@ -10,7 +10,7 @@ It runs entirely on free tiers: local embeddings (bge-small via fastembed) and a
 
 | Ask, with sources | The same question from a member |
 |---|---|
-| ![An admin's answer citing the restricted board financials](docs/screenshots/ask.png) | ![A member gets "nothing found"; the model is never called](docs/screenshots/member-ask.png) |
+| ![An admin's answer citing the restricted board financials](docs/screenshots/ask.png) | ![A member asking the same question gets no figures and no citation](docs/screenshots/member-ask.png) |
 
 ## What it guarantees
 
@@ -59,11 +59,11 @@ All ports bind to `127.0.0.1` only.
 
 | Sign in | Documents for an admin |
 |---|---|
-| ![Sign-in page with the four classification levels](docs/screenshots/login.png) | ![Documents, one per classification level](docs/screenshots/documents.png) |
+| ![Sign-in page with the four classification levels](docs/screenshots/login.png) | ![Acme's five documents with their classification bands](docs/screenshots/documents.png) |
 
 | The same list for a member | Who can read a document |
 |---|---|
-| ![Only the public and internal documents](docs/screenshots/member-documents.png) | ![Permission editor with classification, roles, and people](docs/screenshots/document.png) |
+| ![Only the two internal documents](docs/screenshots/member-documents.png) | ![Permission editor with classification, roles, and people](docs/screenshots/document.png) |
 
 | People (admin) | Audit log (admin) |
 |---|---|
