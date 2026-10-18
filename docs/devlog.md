@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Hardening plan: every deferred review item triaged
+
+**Done** — [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md): all deferred findings from the six phase reviews listed with a verdict. 12 were already fixed in later phases; 3 stay open with reasons (prettier and coverage tooling, pinning the embedding revision beyond `uv.lock` and the baked image, a chunk-ACL trigger that would duplicate `acl_version` and the Python re-check); the rest are fixed in six batches (input hardening, authentication, answering, ingestion, platform, dashboard and demo).
+**Next** — Batch A.
+
 ## 2026-10-18 — README rewrite and MIT licence
 
 **Done** — README restructured for a technical reader: centred header with stack badges and quick links; the admin and member answers side by side; a "Why Veyl" comparison with typical RAG pipelines; security guarantees; quickstart with collapsible sections for the offline stand-in and services; the seven-step demo as a table; the screenshot gallery; architecture, query sequence, and data model diagrams (Mermaid); a defence-in-depth table; the read rule written out; test suites with counts; configuration reference (split into what `.env` reaches through Compose and further application settings); LLM providers; operations; development and tech stack; project structure; limitations; documentation index; phase status. Every relative link and anchor checked. Added the MIT licence (user's choice).

@@ -425,6 +425,7 @@ All six planned phases are complete; each ended with an independent whole-phase 
 | 4 | LLM answers, citations, conversations, audit log | [plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md) |
 | 5 | Dashboard | [plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md) |
 | 6 | Demo, security walkthrough, documentation | [plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md) |
+| Hardening | Close the deferred review findings (in progress) | [plan](docs/superpowers/plans/2026-10-18-hardening-open-items.md) |
 
 ## License
 
