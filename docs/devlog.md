@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 2: the demo walkthrough as a security test
+
+**Done** — `tests/security/test_demo_scenario.py`, seven tests over the seeded demo, asserting on recorded prompts: member cannot reach the board financials; admin gets them with a `restricted` citation; Globex member sees nothing from Acme; reclassifying the roadmap reaches Mia's next question and the revert removes it from the one after; the injected FAQ instruction appears only as source text and the data it asks for is absent; Mark's review reaches Mark and admins only; the audit trail has Mia's questions as references, not text. Markers are chosen so they occur only in documents, never in questions (first draft had a false failure from a marker inside the question).
+**Mutation check** — disabling only the clearance rule did not fail any test, because every demo document Mia cannot read is also outside her roles (clearance is a second lock there). Disabling clearance and grants in both the SQL filter and the Python re-check fails four tests; restored. 318 backend tests.
+**Next** — CI demo smoke (Task 3).
+
 ## 2026-10-18 — Phase 6, Task 1: demo seed
 
 **Done** — `python -m app.cli seed-demo --api-url ...` (Compose service `seed`, profile `demo`): creates Acme and Globex with the owner role, then adds people, uploads the six synthetic documents, and sets permissions **through the public API** as each admin, using a stdlib client (cookies, CSRF header, multipart); waits until every document is processed. Refuses to run twice (exit 1, nothing changed); the password comes only from `VEYL_DEMO_PASSWORD`. The same seed code runs in tests against `TestClient` (session fixture `demo_world`). Checked on a scratch stack: seeded in seconds, second run refused, missing password exit 2. 311 backend tests.

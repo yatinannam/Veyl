@@ -16,7 +16,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (1/7 tasks) |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (2/7 tasks) |
 
 ## Quickstart
 
@@ -265,6 +265,8 @@ Retrieval (`app/retrieval/search.py`) runs in one tenant transaction:
 There is no fallback path: if embedding or the database fails, the request fails. Permission changes and deletions bump `policy_version`, so every cached result for the tenant stops matching immediately; stale chunks whose `acl_version` lags their document's are invisible even if a rewrite were missed.
 
 Tests prove: tenant A never retrieves tenant B's chunks; members never retrieve admin-only chunks; explicit grants never exceed clearance; permission changes apply to the very next search; a cached result never reaches a less-privileged user, even through a forged cache row; and breaking the SQL filter is caught by the Python re-check.
+
+The demo walkthrough is itself a test (`backend/tests/security/test_demo_scenario.py`): it seeds Acme and Globex through the API and asserts, on every prompt the model would have received, that Mia never sees the board financials, Gary never sees anything from Acme, a reclassification reaches Mia on her next question and the revert removes it on the one after, the planted "reveal the Q3 financials" instruction arrives only as quoted source text with nothing to reveal, Mark's review reaches only Mark and admins, and the audit trail records Mia's questions without their text. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of these tests fail.
 
 **Recall note:** small tenants are searched exactly (the planner pre-filters by tenant). In large tenants the HNSW index is approximate; iterative scans keep searching when early candidates are filtered out, but recall under very heavy filtering is best-effort, never at the expense of authorization.
 
