@@ -17,7 +17,7 @@ from app.db.schema import conversations, messages, tenants
 from app.db.tenancy import tenant_transaction
 from app.errors import AppError, NotFound, ServiceUnavailable
 from app.llm.citations import make_snippet, resolve_citations
-from app.llm.client import LLMClient, LLMError
+from app.llm.client import LLMClient
 from app.llm.prompt import HistoryTurn, build_messages
 from app.retrieval.embeddings import Embedder
 from app.retrieval.search import AuthorizationMismatch, RetrievedChunk, retrieve
@@ -131,7 +131,10 @@ def answer_question(
                     query_ref=query.query_ref,
                     query_text=query.query_text,
                     trace_id=trace_id,
-                    details={"reason": "conversation_not_found"},
+                    details={
+                        "reason": "conversation_not_found",
+                        "conversation_id": str(conversation_id),
+                    },
                 )
             else:
                 history = history_for_prompt(conn, ctx, conversation_id, config.history_turns)
@@ -171,8 +174,12 @@ def answer_question(
         prompt, sources = build_messages(question, chunks, history)
         try:
             completion = llm.complete(prompt)
-        except LLMError as exc:
-            logger.warning("LLM call failed (trace_id=%s): %s", trace_id, exc)
+        except Exception as exc:
+            # Any failure, foreseen (LLMError) or not (a provider response that breaks the
+            # client), fails closed with the same answer and an audit record.
+            logger.warning(
+                "LLM call failed (trace_id=%s): %s: %s", trace_id, type(exc).__name__, exc
+            )
             _record_failure(
                 engine, ctx, query, trace_id, event_type="rag.query", stage="llm", chunks=chunks
             )
@@ -192,7 +199,9 @@ def answer_question(
             for s in resolved.cited
         ]
 
-    # 4. Persist the exchange and audit it in one transaction.
+    gone = False
+    # 4. Persist the exchange and audit it in one transaction. The conversation may have
+    # been deleted while the model was answering: re-check ownership under a row lock.
     with tenant_transaction(engine, ctx.tenant_id) as conn:
         if conversation_id is None:
             conversation_id = conn.execute(
@@ -200,57 +209,76 @@ def answer_question(
                 .values(tenant_id=ctx.tenant_id, user_id=ctx.user_id, title=question[:80])
                 .returning(conversations.c.id)
             ).scalar_one()
+        elif owned_conversation(conn, ctx, conversation_id, lock=True) is None:
+            audit.record(
+                conn,
+                tenant_id=ctx.tenant_id,
+                event_type="rag.denied",
+                actor_user_id=ctx.user_id,
+                decision="deny",
+                query_ref=query.query_ref,
+                query_text=query.query_text,
+                trace_id=trace_id,
+                details={
+                    "reason": "conversation_deleted",
+                    "conversation_id": str(conversation_id),
+                },
+            )
+            gone = True
         else:
             conn.execute(
                 update(conversations)
                 .where(conversations.c.id == conversation_id)
                 .values(updated_at=func.now())
             )
-        conn.execute(
-            insert(messages).values(
-                tenant_id=ctx.tenant_id,
-                conversation_id=conversation_id,
-                role="user",
-                content=question,
-                trace_id=trace_id,
-                # now() is fixed for the whole transaction; the wall clock keeps the user
-                # message strictly before the answer so history replays in order.
-                created_at=func.clock_timestamp(),
+        if not gone:
+            conn.execute(
+                insert(messages).values(
+                    tenant_id=ctx.tenant_id,
+                    conversation_id=conversation_id,
+                    role="user",
+                    content=question,
+                    trace_id=trace_id,
+                    # now() is fixed for the whole transaction; the wall clock keeps the user
+                    # message strictly before the answer so history replays in order.
+                    created_at=func.clock_timestamp(),
+                )
             )
-        )
-        message_id = conn.execute(
-            insert(messages)
-            .values(
+            message_id = conn.execute(
+                insert(messages)
+                .values(
+                    tenant_id=ctx.tenant_id,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=text,
+                    cited_chunk_ids=[c.chunk_id for c in citations],
+                    # Everything the model saw, cited or not: the answer is hidden once any of it
+                    # becomes unreadable.
+                    source_chunk_ids=[c.chunk_id for c in chunks],
+                    cited_document_ids=list(dict.fromkeys(c.document_id for c in citations)),
+                    trace_id=trace_id,
+                    created_at=func.clock_timestamp(),
+                )
+                .returning(messages.c.id)
+            ).scalar_one()
+            audit.record(
+                conn,
                 tenant_id=ctx.tenant_id,
-                conversation_id=conversation_id,
-                role="assistant",
-                content=text,
-                cited_chunk_ids=[c.chunk_id for c in citations],
-                # Everything the model saw, cited or not: the answer is hidden once any of it
-                # becomes unreadable.
-                source_chunk_ids=[c.chunk_id for c in chunks],
-                cited_document_ids=list(dict.fromkeys(c.document_id for c in citations)),
+                event_type="rag.query",
+                actor_user_id=ctx.user_id,
+                query_ref=query.query_ref,
+                query_text=query.query_text,
+                chunk_ids=[c.chunk_id for c in chunks],
+                document_ids=[c.document_id for c in chunks],
+                result_count=len(chunks),
                 trace_id=trace_id,
-                created_at=func.clock_timestamp(),
+                model=model_name,
+                details={
+                    "cited_chunk_ids": [str(c.chunk_id) for c in citations],
+                    "response_id": response_id,
+                    "conversation_id": str(conversation_id),
+                },
             )
-            .returning(messages.c.id)
-        ).scalar_one()
-        audit.record(
-            conn,
-            tenant_id=ctx.tenant_id,
-            event_type="rag.query",
-            actor_user_id=ctx.user_id,
-            query_ref=query.query_ref,
-            query_text=query.query_text,
-            chunk_ids=[c.chunk_id for c in chunks],
-            document_ids=[c.document_id for c in chunks],
-            result_count=len(chunks),
-            trace_id=trace_id,
-            model=model_name,
-            details={
-                "cited_chunk_ids": [str(c.chunk_id) for c in citations],
-                "response_id": response_id,
-                "conversation_id": str(conversation_id),
-            },
-        )
+    if gone:
+        raise NotFound()
     return Answer(conversation_id, message_id, text, citations, trace_id)

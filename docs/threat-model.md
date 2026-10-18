@@ -61,15 +61,10 @@ Stated in spec section 11 and repeated here:
 
 ## Open review items
 
-Minor findings from the phase reviews that are not fixed yet, tracked in the [dev log](devlog.md):
+Remaining minor findings from the phase reviews, being closed under the [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md) (fixed items are recorded in the [dev log](devlog.md)):
 
-- Deeply nested provider JSON raises `RecursionError` (500, not audited).
-- Delimiter neutralisation misses zero-width, fullwidth, and entity-encoded lookalikes (impact limited to mis-attribution among readable sources).
-- Old `[S#]` markers in replayed history can be repeated by the model and resolve to new sources.
 - The `.env.example` `AUDIT_HMAC_KEY` placeholder is accepted; it should be rejected in production.
-- The LLM timeout is per socket operation, not a total deadline.
-- A conversation deleted mid-request causes a 500 after the model call.
-- `rag.denied` details omit the attempted conversation id.
 - Concurrent permission edits: the later save wins without a warning.
-- Ingestion and retrieval minors from the Phase 3 review listed in the dev log.
-- A seed that fails after creating the tenants should say the demo is incomplete; the citation pattern's dagger reference should not cross newlines; one demo test can pass vacuously (Phase 6 review).
+- Ingestion: no lease token on jobs; upload `allowed_user_ids` not capped; two ingestion tests would pass without their guards.
+- Platform: `/readyz` has no statement timeout; `LOG_LEVEL` is not applied to the API; Compose services keep default capabilities.
+- A seed that fails after creating the tenants should say the demo is incomplete; one demo test can pass vacuously.

@@ -83,7 +83,8 @@ def test_follow_up_questions_carry_history(
     second_prompt = llm.calls[1]
     assert [m.role for m in second_prompt] == ["system", "user", "assistant", "user"]
     assert second_prompt[1].content == "Is remote work allowed?"
-    assert second_prompt[2].content == "Approval is needed [S1]."
+    # Old markers are stripped: [S1] meant a source of the earlier turn, not this one.
+    assert second_prompt[2].content == "Approval is needed."
 
 
 def test_conversations_can_be_deleted(owner_engine: Engine, database_urls: DatabaseUrls) -> None:

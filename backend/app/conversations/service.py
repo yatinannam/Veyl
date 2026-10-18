@@ -57,14 +57,17 @@ _SUMMARY = (
 )
 
 
-def owned_conversation(conn: Connection, ctx: AuthContext, conversation_id: UUID) -> Any | None:
-    return conn.execute(
-        select(*_SUMMARY).where(
-            conversations.c.id == conversation_id,
-            conversations.c.tenant_id == ctx.tenant_id,
-            conversations.c.user_id == ctx.user_id,
-        )
-    ).one_or_none()
+def owned_conversation(
+    conn: Connection, ctx: AuthContext, conversation_id: UUID, *, lock: bool = False
+) -> Any | None:
+    query = select(*_SUMMARY).where(
+        conversations.c.id == conversation_id,
+        conversations.c.tenant_id == ctx.tenant_id,
+        conversations.c.user_id == ctx.user_id,
+    )
+    if lock:
+        query = query.with_for_update()
+    return conn.execute(query).one_or_none()
 
 
 def _visible(conn: Connection, ctx: AuthContext, rows: list[Any]) -> list[StoredMessage]:

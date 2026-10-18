@@ -38,9 +38,9 @@ def test_resolve_citations_accepts_the_marker_styles_models_actually_write() -> 
     # line reference after a dagger; also fullwidth brackets and grouped labels.
     sources = _sources(3)
     answer = (
-        "Revenue was 18.4 million USD【S1】. "
-        "Cash was 42.7 million【S2†L3-L5】. "
-        "Margins held ［S1］, see [S3, S2]; ignore 【S9】."  # noqa: RUF001
+        "Revenue was 18.4 million USD\u3010S1\u3011. "
+        "Cash was 42.7 million\u3010S2\u2020L3-L5\u3011. "
+        "Margins held \uff3bS1\uff3d, see [S3, S2]; ignore \u3010S9\u3011."
     )
     resolved = resolve_citations(answer, sources)
     assert [s.chunk for s in resolved.cited] == [s.chunk for s in sources]
@@ -54,3 +54,9 @@ def test_resolve_citations_without_markers_cites_nothing() -> None:
     resolved = resolve_citations("I could not find that.", _sources(2))
     assert resolved.cited == []
     assert resolved.text == "I could not find that."
+
+
+def test_a_dagger_reference_cannot_swallow_text_across_lines() -> None:
+    answer = "Note [S1\u2020 this spans\nmany lines of the answer] tail [S1]."
+    resolved = resolve_citations(answer, _sources(1))
+    assert "many lines of the answer" in resolved.text

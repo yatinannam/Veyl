@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, delete, func, select
 
 from app.audit.service import query_reference
 from app.authz import AuthContext, Classification, Role
-from app.db.schema import audit_events, messages
+from app.db.schema import audit_events, conversations, messages, retrieval_cache
 from app.documents import service as documents_service
 from app.llm.prompt import SYSTEM_PROMPT
 from tests.api import API, client_for, csrf, login
@@ -147,12 +147,21 @@ def test_no_authorized_sources_means_no_llm_call(world: World, database_urls: Da
 
 
 def test_cached_retrieval_never_crosses_users_end_to_end(
-    world: World, database_urls: DatabaseUrls
+    owner_engine: Engine, world: World, database_urls: DatabaseUrls
 ) -> None:
     question = "What was quarterly revenue in the board minutes?"
     with client_for(database_urls.app, embedder=EMBEDDER, llm=RecordingLLM()) as admin:
         login(admin, world.slug, world.admin_email)
         _ask(admin, question)
+    # The admin's result really is cached, so the member's identical question below is a
+    # genuine test of cache isolation (this would fail if caching were off).
+    with owner_engine.connect() as conn:
+        cached = conn.execute(
+            select(func.count())
+            .select_from(retrieval_cache)
+            .where(retrieval_cache.c.tenant_id == world.tenant_id)
+        ).scalar_one()
+    assert cached >= 1
     member_llm = RecordingLLM()
     with client_for(database_urls.app, embedder=EMBEDDER, llm=member_llm) as member:
         login(member, world.slug, world.member_email)
@@ -339,3 +348,88 @@ def test_uncited_answers_are_also_hidden_after_revocation(
         view = client.get(f"{API}/conversations/{first['conversation_id']}").json()
     assert "CANARY-UNCITED-77" not in "\n".join(m.content for m in llm.calls[1])
     assert "CANARY-UNCITED-77" not in view["messages"][1]["content"]
+
+
+class _BrokenLLM:
+    """A provider whose response breaks the client in an unforeseen way."""
+
+    model = "broken"
+
+    def complete(self, messages: object) -> object:
+        raise RecursionError("maximum recursion depth exceeded while decoding JSON")
+
+
+def _audit(owner_engine: Engine, tenant_id: UUID, event_type: str) -> list[object]:
+    with owner_engine.connect() as conn:
+        return list(
+            conn.execute(
+                select(audit_events).where(
+                    audit_events.c.tenant_id == tenant_id, audit_events.c.event_type == event_type
+                )
+            ).all()
+        )
+
+
+def test_any_unexpected_llm_failure_fails_closed_and_is_audited(
+    owner_engine: Engine, world: World, database_urls: DatabaseUrls
+) -> None:
+    with client_for(database_urls.app, embedder=EMBEDDER, llm=_BrokenLLM()) as client:  # type: ignore[arg-type]
+        login(client, world.slug, world.member_email)
+        r = _ask(client, "Who handles quarterly revenue questions?")
+    assert (r.status_code, r.json()["error"]["code"]) == (503, "llm_unavailable")  # type: ignore[attr-defined]
+    errors = [
+        e for e in _audit(owner_engine, world.tenant_id, "rag.query") if e.decision == "error"
+    ]
+    assert [e.details["stage"] for e in errors] == ["llm"]
+
+
+def test_nothing_relevant_is_audited_with_zero_results(
+    owner_engine: Engine, world: World, database_urls: DatabaseUrls
+) -> None:
+    llm = RecordingLLM()
+    with client_for(
+        database_urls.app, embedder=EMBEDDER, llm=llm, retrieval_min_score=0.999
+    ) as client:
+        login(client, world.slug, world.member_email)
+        assert _ask(client, "Completely unrelated question about llamas").status_code == 200  # type: ignore[attr-defined]
+    assert llm.calls == []
+    [event] = _audit(owner_engine, world.tenant_id, "rag.query")
+    assert (event.decision, event.result_count, list(event.retrieved_chunk_ids)) == ("allow", 0, [])
+
+
+def test_a_conversation_deleted_during_the_model_call_is_not_found(
+    owner_engine: Engine, world: World, database_urls: DatabaseUrls
+) -> None:
+    class DeletingLLM(RecordingLLM):
+        def __init__(self) -> None:
+            super().__init__()
+            self.conversation: str | None = None
+
+        def complete(self, messages):  # type: ignore[no-untyped-def]
+            if self.conversation is not None:
+                with owner_engine.begin() as conn:
+                    conn.execute(
+                        delete(conversations).where(conversations.c.id == self.conversation)
+                    )
+            return super().complete(messages)
+
+    llm = DeletingLLM()
+    with client_for(database_urls.app, embedder=EMBEDDER, llm=llm) as client:
+        login(client, world.slug, world.member_email)
+        first = _ask(client, "Who handles quarterly revenue questions?").json()  # type: ignore[attr-defined]
+        llm.conversation = first["conversation_id"]
+        r = _ask(client, "And who approves it?", first["conversation_id"])
+    assert (r.status_code, r.json()["error"]["code"]) == (404, "not_found")  # type: ignore[attr-defined]
+    denied = _audit(owner_engine, world.tenant_id, "rag.denied")
+    assert [e.details["reason"] for e in denied] == ["conversation_deleted"]
+
+
+def test_a_refused_question_records_the_conversation_it_named(
+    owner_engine: Engine, world: World, database_urls: DatabaseUrls
+) -> None:
+    unknown = str(uuid4())
+    with client_for(database_urls.app, embedder=EMBEDDER) as client:
+        login(client, world.slug, world.member_email)
+        assert _ask(client, "Anything?", unknown).status_code == 404  # type: ignore[attr-defined]
+    [event] = _audit(owner_engine, world.tenant_id, "rag.denied")
+    assert event.details["conversation_id"] == unknown

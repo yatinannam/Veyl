@@ -82,6 +82,13 @@ def provider() -> Iterator[tuple[FakeProvider, str]]:
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
+            if state.mode == "trickle":
+                # Each byte arrives well inside a per-read timeout; the whole body does not.
+                for byte in payload:
+                    self.wfile.write(bytes([byte]))
+                    self.wfile.flush()
+                    time.sleep(0.05)
+                return
             self.wfile.write(payload)
 
         def log_message(self, *args: Any) -> None:
@@ -146,6 +153,15 @@ def test_slow_providers_time_out(provider: tuple[FakeProvider, str]) -> None:
     state.mode = "slow"
     with pytest.raises(LLMError):
         _client(url, timeout=0.5).complete(MESSAGES)
+
+
+def test_the_timeout_is_a_total_deadline_not_per_read(provider: tuple[FakeProvider, str]) -> None:
+    state, url = provider
+    state.mode = "trickle"  # about 10 seconds for the whole body
+    started = time.monotonic()
+    with pytest.raises(LLMError):
+        _client(url, timeout=0.5).complete(MESSAGES)
+    assert time.monotonic() - started < 2
 
 
 def test_unreachable_providers_fail() -> None:

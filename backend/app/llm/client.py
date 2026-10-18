@@ -2,11 +2,12 @@
 library HTTP only. Uses `message.content`; provider-side reasoning is never surfaced."""
 
 import json
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from urllib.parse import urlparse
 
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
@@ -44,6 +45,17 @@ class LLMClient(Protocol):
     model: str
 
     def complete(self, messages: Sequence[ChatMessage]) -> Completion: ...
+
+
+def _read_before(response: Any, deadline: float) -> bytes:
+    body = bytearray()
+    while chunk := response.read1(64 * 1024):
+        body += chunk
+        if len(body) > MAX_RESPONSE_BYTES:
+            raise LLMError("provider response is too large")
+        if time.monotonic() > deadline:
+            raise LLMError("provider exceeded the time limit")
+    return bytes(body)
 
 
 class OpenAICompatibleLLM:
@@ -85,9 +97,12 @@ class OpenAICompatibleLLM:
         request = urllib.request.Request(  # noqa: S310
             self.endpoint, data=body, headers=headers, method="POST"
         )
+        # `timeout` bounds each socket operation; the deadline bounds the whole exchange,
+        # so a provider that trickles bytes cannot hold a worker indefinitely.
+        deadline = time.monotonic() + self.timeout_seconds
         try:
             with _OPENER.open(request, timeout=self.timeout_seconds) as response:
-                payload = json.loads(response.read(MAX_RESPONSE_BYTES))
+                payload = json.loads(_read_before(response, deadline))
         except urllib.error.HTTPError as exc:
             raise LLMError(f"provider returned HTTP {exc.code}") from exc
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:

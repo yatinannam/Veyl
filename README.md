@@ -24,7 +24,8 @@ Answers from your company's documents, never beyond what you are cleared to read
 
 Veyl lets people ask questions of their organisation's internal documents in plain language and returns answers with server-verified citations. Every document carries a classification and an access list, and those permissions are enforced **inside retrieval**: text a person may not read is never fetched from the database, never placed in the language model's context, and never cited. Tenants are isolated by Postgres row-level security, every question is audited, and the whole stack runs on free tiers.
 
-## Contents
+<details>
+<summary><b>Contents</b></summary>
 
 - [Why Veyl](#why-veyl)
 - [Security guarantees](#security-guarantees)
@@ -34,16 +35,20 @@ Veyl lets people ask questions of their organisation's internal documents in pla
 - [Architecture](#architecture)
 - [Authorization model](#authorization-model)
 - [Data model](#data-model)
+- [Key design decisions](#key-design-decisions)
 - [Testing](#testing)
 - [Configuration](#configuration)
 - [LLM providers](#llm-providers)
 - [Operations](#operations)
 - [Development](#development)
 - [Project structure](#project-structure)
+- [FAQ](#faq)
 - [Limitations](#limitations)
 - [Documentation](#documentation)
-- [Project status](#project-status)
+- [Security](#security)
 - [License](#license)
+
+</details>
 
 ## Why Veyl
 
@@ -273,17 +278,32 @@ erDiagram
 
 Every table carries `tenant_id`, forced row-level security, and composite foreign keys that make cross-tenant references impossible. Two database roles separate duties: `veyl_owner` runs migrations; `veyl_app` serves requests with column-level grants, no `BYPASSRLS`, and no superuser rights. The retrieval cache stores chunk ids only, never content. The full schema is in the [design spec](docs/superpowers/specs/2026-10-15-veyl-design.md#52-entity-relationships).
 
+## Key design decisions
+
+Fifty-two decisions are recorded with their alternatives in the [decision log](docs/decisions.md). The ones that shape the system:
+
+| Decision | Instead of | Why |
+|---|---|---|
+| Copy each document's ACL onto its chunks and filter inside the vector query (D-006) | Filter retrieved results afterwards | Unauthorized rows never leave the database, so no later bug can leak them |
+| Re-check every row in Python against the same rule (D-006) | Trust the SQL filter alone | Two independent implementations, proven equivalent; a disagreement aborts the request |
+| `acl_version` on documents and chunks, `policy_version` per tenant (D-007, D-032) | Time-based cache expiry | A permission change is visible to the very next question, and stale chunks are invisible even if a rewrite were missed |
+| Cache chunk ids only, re-fetched through the filter (D-008) | Cache retrieved text or answers | A cached result can never hand content to someone who cannot read it |
+| Store every chunk an answer was built from, cited or not (D-040) | Re-check only the cited chunks | A model can use a source without citing it; the answer is hidden once any source is revoked |
+| Only the migration service holds owner credentials; tenants are created by an operator command (D-011, D-018) | An admin API for tenants | The serving role has no way to create tenants or bypass row-level security |
+| Opaque, hashed session tokens in HttpOnly cookies with double-submit CSRF (D-004) | JWTs in browser storage | Revocation, deactivation, and role changes take effect on the next request; scripts can never read the session token |
+| Local embeddings and a standard-library LLM client that refuses redirects (D-003, D-035, D-041) | Hosted embeddings and vendor SDKs | $0, fewer dependencies, and the API key cannot follow a redirect to another host |
+
 ## Testing
 
 | Suite | Size | Runs against |
 |---|---|---|
-| Backend unit | 88 test functions | Policy, chunker, prompt builder, citation parser, extractors |
-| Backend integration | 94 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
-| Backend security | 81 test functions | The threat model, end to end through the API |
+| Backend unit | 93 test functions | Policy, chunker, prompt builder, citation parser, extractors |
+| Backend integration | 95 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
+| Backend security | 94 test functions | The threat model, end to end through the API |
 | Frontend | 56 tests | Vitest and Testing Library |
 | Compose smoke (CI) | 11 steps | The full stack: sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
 
-With parametrisation the backend collects **319 tests**. Highlights:
+With parametrisation the backend collects **342 tests**. Highlights:
 
 - **Demo scenario:** seeds both companies through the API and asserts on every recorded prompt. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of its seven tests fail.
 - **Filter equivalence:** an exhaustive test over every combination of tenants, users, roles, classifications, and grants proves the SQL read filter and the Python rule agree; Hypothesis property tests cover the policy and chunker invariants.
@@ -389,6 +409,26 @@ docker/             Postgres role bootstrap, Caddy config, LLM stand-in, CI smok
 docs/               architecture, threat model, API, demo, spec, plans, decisions, dev log
 ```
 
+## FAQ
+
+**Why not just tell the model which documents the user may see?**
+Because instructions are not access control. Anything placed in the prompt can be repeated, summarised, or extracted with a well-crafted question or a poisoned document. Veyl never puts unauthorized text in the prompt in the first place.
+
+**How is this different from metadata filters in a vector database?**
+Metadata filters are one ingredient. Veyl also isolates tenants with row-level security, re-checks every row in Python, versions ACLs so permission changes take effect immediately, keeps the cache content-free, re-authorizes conversation history, verifies citations on the server, and audits each step, all tested end to end.
+
+**Can everything stay on my machine?**
+Yes. Embeddings already run locally. Point `LLM_BASE_URL` at a local Ollama server and no text leaves the machine.
+
+**What happens when nothing the user may read is relevant?**
+The model is not called. The user is told nothing was found in the documents they can access, and the audit log records the question with zero results.
+
+**Does a document with a prompt injection put other documents at risk?**
+No. Retrieval and authorization finish before the model sees anything, so an injected instruction can only distort an answer built from content the user may already read. The demo includes such a document, and a test checks that the data it asks for is never in the prompt.
+
+**Is it production-ready?**
+It is a complete, tested reference implementation for a single node. Scaling out needs a shared rate limiter, and stronger audit tamper-evidence needs the table moved to a role no service uses or logs shipped elsewhere; both are listed under limitations.
+
 ## Limitations
 
 Stated rather than hidden; the full list is in the [threat model](docs/threat-model.md#known-limitations):
@@ -410,22 +450,11 @@ Stated rather than hidden; the full list is in the [threat model](docs/threat-mo
 | [Demo walkthrough](docs/demo.md) | Seeding and the step-by-step scenario |
 | [Design spec](docs/superpowers/specs/2026-10-15-veyl-design.md) | The original design: authorization model, schema, pipelines |
 | [Decision log](docs/decisions.md) | Fifty-two recorded decisions with alternatives and reasons |
-| [Dev log](docs/devlog.md) | Chronological record of the work, including every review finding |
+| [Dev log](docs/devlog.md) | Chronological record of the work, including every review finding and how it was resolved |
 
-## Project status
+## Security
 
-All six planned phases are complete; each ended with an independent whole-phase review whose findings are recorded in the dev log.
-
-| Phase | Scope | Plan |
-|---|---|---|
-| 1 | Architecture and threat model | [spec](docs/superpowers/specs/2026-10-15-veyl-design.md) |
-| 0 | Repository, tooling, Compose, CI | [plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md) |
-| 2 | Schema, row-level security, authentication, RBAC | [plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md) |
-| 3 | Ingestion, embeddings, permission-filtered retrieval | [plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md) |
-| 4 | LLM answers, citations, conversations, audit log | [plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md) |
-| 5 | Dashboard | [plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md) |
-| 6 | Demo, security walkthrough, documentation | [plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md) |
-| Hardening | Close the deferred review findings (in progress) | [plan](docs/superpowers/plans/2026-10-18-hardening-open-items.md) |
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md); anything that breaks a guarantee in the threat model is in scope.
 
 ## License
 

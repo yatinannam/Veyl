@@ -4,10 +4,12 @@ distort an answer built from content the caller may already read; it cannot wide
 because retrieval is finished before the model sees anything."""
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.llm.client import ChatMessage
+from app.llm.markers import strip_markers
 from app.retrieval.search import RetrievedChunk
 
 SYSTEM_PROMPT = "\n".join(
@@ -28,6 +30,8 @@ SYSTEM_PROMPT = "\n".join(
 )
 
 _DELIMITER = re.compile(r"<(\s*/?\s*source)", re.IGNORECASE)
+# Characters that render as nothing; a model may read "<\u200bsource" as "<source".
+_INVISIBLE = re.compile("[\u200b-\u200d\u2060\ufeff]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,8 +47,11 @@ class PromptSource:
 
 
 def neutralise(text: str) -> str:
-    """Stop text from opening or closing a source block."""
-    return _DELIMITER.sub(r"&lt;\1", text)
+    """Stop text from opening or closing a source block, including look-alikes: invisible
+    characters are removed and compatibility forms (fullwidth letters and brackets) are
+    normalised (NFKC) before delimiters are escaped."""
+    visible = unicodedata.normalize("NFKC", _INVISIBLE.sub("", text))
+    return _DELIMITER.sub(r"&lt;\1", visible)
 
 
 def _attribute(text: str) -> str:
@@ -66,6 +73,8 @@ def build_messages(
         f"Question: {neutralise(question)}"
     )
     messages = [ChatMessage("system", SYSTEM_PROMPT)]
-    messages += [ChatMessage(turn.role, neutralise(turn.content)) for turn in history]
+    messages += [
+        ChatMessage(turn.role, neutralise(strip_markers(turn.content))) for turn in history
+    ]
     messages.append(ChatMessage("user", final))
     return messages, sources

@@ -5,19 +5,8 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from app.llm.markers import MARKER, collapse_spaces
 from app.llm.prompt import PromptSource
-
-# Models write source markers in several shapes: [S1], [S1, S3], fullwidth brackets, and
-# (gpt-oss) CJK lenticular brackets with an optional line reference after a dagger,
-# such as 【S1†L3-L5】. All are read; the stored text always uses [S#].
-_OPEN = "[［【"  # noqa: RUF001 (deliberate look-alikes)
-_CLOSE = "]］】"  # noqa: RUF001 (deliberate look-alikes)
-_MARKER = re.compile(
-    rf"[{re.escape(_OPEN)}]\s*([Ss]\d{{1,3}}(?:\s*,\s*[Ss]\d{{1,3}})*)\s*"
-    rf"(?:†[^{re.escape(_CLOSE)}]*)?[{re.escape(_CLOSE)}]"
-)
-_SPACES = re.compile(r"[ \t]{2,}")
-
 
 SNIPPET_CHARS = 240
 
@@ -46,7 +35,7 @@ def resolve_citations(answer: str, sources: Sequence[PromptSource]) -> ResolvedA
     def replace(match: re.Match[str]) -> str:
         return "".join(relabel(label) for label in match.group(1).split(","))
 
-    text = _SPACES.sub(" ", _MARKER.sub(replace, answer)).strip()
+    text = collapse_spaces(MARKER.sub(replace, answer)).strip()
     return ResolvedAnswer(text=text, cited=list(renumbered.values()))
 
 
