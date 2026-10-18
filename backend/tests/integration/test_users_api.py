@@ -6,7 +6,7 @@ from sqlalchemy import Engine, select
 
 from app.authz import AuthContext, Role
 from app.db.schema import sessions, tenants, users
-from app.errors import Conflict
+from app.errors import Conflict, Forbidden
 from app.users import service as user_service
 from tests.api import API, client_for, csrf, login
 from tests.conftest import DatabaseUrls
@@ -158,6 +158,9 @@ def test_concurrent_mutual_demotion_keeps_one_admin(
             outcomes.append("ok")
         except Conflict:
             outcomes.append("conflict")
+        except Forbidden:
+            # The winner demoted this caller first; the re-check under the lock sees it.
+            outcomes.append("forbidden")
 
     threads = [
         threading.Thread(target=demote, args=(ctx_a, second_admin)),
@@ -167,7 +170,7 @@ def test_concurrent_mutual_demotion_keeps_one_admin(
         t.start()
     for t in threads:
         t.join()
-    assert sorted(outcomes) == ["conflict", "ok"]
+    assert sorted(outcomes) in (["conflict", "ok"], ["forbidden", "ok"])
     with owner_engine.connect() as conn:
         admins = (
             conn.execute(

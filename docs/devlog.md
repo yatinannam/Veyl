@@ -2,6 +2,19 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Hardening, Batch B: authentication and administration
+
+**Done** (tests RED to GREEN unless noted)
+- *P2-1:* creating or changing users re-checks, under the membership lock, that the caller is still an active admin; a demotion committed after the request's session check now wins. The mutual-demotion race test now also accepts `forbidden` for the loser (it was demoted first), and still proves one admin remains.
+- *P2-6:* each sign-in attempt is counted before the password is verified, atomically with the limit check, and a success gives its slot back. Ten concurrent wrong passwords against a limit of three now verify at most three (previously all ten).
+- *P2-7:* signing in revokes the session the browser already presented; logout clears both cookies even when the session is already dead (previously 401 with cookies left behind).
+- *P2-8:* provisioning rejects a malformed admin email. (Reporting other integrity errors distinctly is moot: in a brand-new tenant only the slug can collide.)
+- *P2-3:* the session-expiry test now asserts exactly the TTL; computing expiry on the app clock makes it fail (mutation check).
+- *P2-4:* a non-ASCII CSRF cookie is rejected with 403; this already worked, the test was missing.
+
+336 backend tests.
+**Next** — Batch C (answering questions).
+
 ## 2026-10-18 — Hardening, Batch A: NUL bytes and invalid text
 
 **Done** — a shared `SafeText` type rejects NUL characters in sign-in fields, upload titles, questions, new users' emails, and workspace names, so they get `422 validation_error` instead of a 500 from inside a database call (P2-5, P3-3). Extracted document text has NUL characters removed and lone surrogates replaced, so such PDFs ingest instead of failing three times as "transient" (P3-2). Tests RED to GREEN.

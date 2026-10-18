@@ -45,6 +45,19 @@ def lock_tenant_membership(conn: Connection, tenant_id: UUID) -> None:
     )
 
 
+def require_current_admin(conn: Connection, ctx: AuthContext) -> None:
+    """Re-check, under the membership lock, that the caller is still an active admin. The
+    request's context was resolved earlier; a demotion or deactivation committed since
+    then must win."""
+    row = conn.execute(
+        select(users.c.role, users.c.is_active).where(
+            users.c.id == ctx.user_id, users.c.tenant_id == ctx.tenant_id
+        )
+    ).one_or_none()
+    if row is None or not row.is_active or row.role != Role.ADMIN.value:
+        raise Forbidden()
+
+
 @dataclass(frozen=True, slots=True)
 class DirectoryEntry:
     id: UUID
@@ -82,6 +95,8 @@ def create_user(
     password_hash = hash_password(password)
     try:
         with tenant_transaction(engine, ctx.tenant_id) as conn:
+            lock_tenant_membership(conn, ctx.tenant_id)
+            require_current_admin(conn, ctx)
             row = conn.execute(
                 insert(users)
                 .values(
@@ -123,6 +138,7 @@ def update_user(
 
     with tenant_transaction(engine, ctx.tenant_id) as conn:
         lock_tenant_membership(conn, ctx.tenant_id)
+        require_current_admin(conn, ctx)
         row = conn.execute(
             update(users)
             .where(users.c.id == user_id, users.c.tenant_id == ctx.tenant_id)

@@ -13,6 +13,8 @@ from app.authz import Role
 from app.db.schema import tenants, users
 
 SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
+# Same shape the API requires for new users.
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +28,8 @@ def provision_tenant(
 ) -> ProvisionedTenant:
     if not SLUG_PATTERN.fullmatch(slug):
         raise ValueError("slug must be 2-63 chars of lowercase letters, digits, and hyphens")
+    if not EMAIL_PATTERN.fullmatch(admin_email.strip()) or len(admin_email) > 320:
+        raise ValueError("admin email must look like name@domain")
     if len(admin_password) < MIN_PASSWORD_LENGTH:
         raise ValueError(f"admin password must be at least {MIN_PASSWORD_LENGTH} characters")
     password_hash = hash_password(admin_password)

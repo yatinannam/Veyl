@@ -89,6 +89,7 @@ def login(
         password=body.password,
         client_ip=request.client.host if request.client else "unknown",
         session_ttl=timedelta(minutes=settings.session_ttl_minutes),
+        previous_token=request.cookies.get(SESSION_COOKIE),
     )
     _set_cookie(response, settings, SESSION_COOKIE, result.session_token, httponly=True)
     _set_cookie(response, settings, CSRF_COOKIE, result.csrf_token, httponly=False)
@@ -96,8 +97,13 @@ def login(
 
 
 @router.post("/logout", status_code=204, dependencies=[Depends(require_csrf)])
-def logout(ctx: CurrentUser, engine: EngineDep, settings: SettingsDep) -> Response:
-    service.logout(engine, ctx)
+def logout(request: Request, engine: EngineDep, settings: SettingsDep) -> Response:
+    # Revoke the session if it is still alive, and clear both cookies either way: a
+    # browser holding an expired or revoked session must still be able to sign out.
+    token = request.cookies.get(SESSION_COOKIE)
+    ctx = service.resolve_session(engine, token) if token else None
+    if ctx is not None:
+        service.logout(engine, ctx)
     response = Response(status_code=204)
     for name, httponly in ((SESSION_COOKIE, True), (CSRF_COOKIE, False)):
         response.delete_cookie(

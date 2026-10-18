@@ -77,7 +77,8 @@ def test_session_expiry_uses_database_clock(
             ),
             {"u": user_id},
         ).scalar_one()
-    assert abs(float(seconds) - 3600) < 5
+    # Both timestamps come from one transaction on the database clock: exactly the TTL.
+    assert float(seconds) == 3600
 
 
 def test_login_failures_are_indistinguishable(

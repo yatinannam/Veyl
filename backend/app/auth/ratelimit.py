@@ -56,6 +56,27 @@ class LoginRateLimiter:
             entries.append(self._clock())
             self._failures[key] = entries
 
+    def try_reserve(self, key: str) -> bool:
+        """Count an attempt before it is verified, atomically with the limit check, so a
+        concurrent burst cannot all pass the check before any of them is recorded."""
+        with self._lock:
+            self._sweep()
+            entries = self._recent(key)
+            if len(entries) >= self._max:
+                return False
+            entries.append(self._clock())
+            self._failures[key] = entries
+            return True
+
+    def release(self, key: str) -> None:
+        """Give back one reservation (the attempt succeeded or never ran)."""
+        with self._lock:
+            entries = self._failures.get(key)
+            if entries:
+                entries.pop()
+                if not entries:
+                    del self._failures[key]
+
     def reset(self, key: str) -> None:
         with self._lock:
             self._failures.pop(key, None)

@@ -63,15 +63,22 @@ def login(
     password: str,
     client_ip: str,
     session_ttl: timedelta,
+    previous_token: str | None = None,
 ) -> LoginResult:
     slug = tenant_slug.strip().lower()
     email = email.strip().lower()
     account_key = f"account:{slug}:{email}"
     ip_key = f"ip:{client_ip}"
-    if limiters.account.is_blocked(account_key) or limiters.ip.is_blocked(ip_key):
+    # Every attempt is counted before the password is checked; a success gives it back.
+    if not limiters.account.try_reserve(account_key):
+        raise RateLimited()
+    if not limiters.ip.try_reserve(ip_key):
+        limiters.account.release(account_key)
         raise RateLimited()
 
     if not limiters.hashing.acquire(timeout=limiters.hash_wait_seconds):
+        limiters.account.release(account_key)
+        limiters.ip.release(ip_key)
         raise RateLimited()
     try:
         with engine.connect() as conn:
@@ -84,8 +91,6 @@ def login(
     finally:
         limiters.hashing.release()
     if row is None or not row.is_active or not password_ok:
-        limiters.account.record_failure(account_key)
-        limiters.ip.record_failure(ip_key)
         if row is not None:
             # The account exists, so the tenant is known and the attempt is auditable.
             with tenant_transaction(engine, row.tenant_id) as conn:
@@ -99,6 +104,11 @@ def login(
                 )
         raise InvalidCredentials()
     limiters.account.reset(account_key)
+    limiters.ip.release(ip_key)
+    # A browser that signs in again replaces its session; the old one must not live on.
+    previous = resolve_session(engine, previous_token) if previous_token else None
+    if previous is not None:
+        logout(engine, previous)
 
     token = new_session_token()
     with tenant_transaction(engine, row.tenant_id) as conn:
