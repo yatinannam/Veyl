@@ -1,7 +1,7 @@
 """T11 (insecure document upload) and T4 (forged tenant identifiers on upload)."""
 
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import Engine, func, select
@@ -93,3 +93,16 @@ def test_forged_tenant_field_is_ignored(
     assert r.json()["uploaded_by"] == str(seeded.admin_id)
     assert _document_count(owner_engine, other.tenant_id) == 0
     assert _document_count(owner_engine, seeded.tenant_id) == 1
+
+
+def test_sharing_an_upload_with_too_many_people_is_rejected(
+    owner_engine: Engine,
+    database_urls: DatabaseUrls,
+    seeded: SeededTenant,
+    tmp_path: Path,
+) -> None:
+    with client_for(database_urls.app, upload_dir=str(tmp_path)) as client:
+        login(client, seeded.slug, seeded.admin_email)
+        r = upload(client, "a.txt", b"hello", user_ids=[uuid4() for _ in range(501)])
+    assert (r.status_code, r.json()["error"]["code"]) == (422, "upload_rejected")
+    assert _document_count(owner_engine, seeded.tenant_id) == 0

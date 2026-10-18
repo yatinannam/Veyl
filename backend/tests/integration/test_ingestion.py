@@ -1,3 +1,5 @@
+import threading
+import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -171,7 +173,9 @@ def test_permission_change_during_ingestion_reaches_new_chunks(
     )
     ingestor.persist(prepared)
     doc = _document(owner_engine, document_id)
-    for chunk in _chunks(owner_engine, document_id):
+    chunks = _chunks(owner_engine, document_id)
+    assert chunks, "persist must have written chunks for the check below to mean anything"
+    for chunk in chunks:
         assert (chunk.classification, chunk.allowed_roles, chunk.acl_version) == (
             "restricted",
             ["admin"],
@@ -188,6 +192,14 @@ def test_documents_deleted_before_processing_are_skipped(
     documents_service.delete_document(app_engine, storage, admin, document_id)
     assert Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50).run_once() is True
     assert _chunks(owner_engine, document_id) == []
+    with owner_engine.connect() as conn:
+        job = conn.execute(
+            select(ingestion_jobs.c.status, ingestion_jobs.c.attempts).where(
+                ingestion_jobs.c.document_id == document_id
+            )
+        ).one()
+    # Skipped by the deleted-document guard, not failed (and re-queued) on the missing file.
+    assert (job.status, job.attempts) == ("done", 1)
 
 
 def test_finished_ingestion_invalidates_cached_retrieval(
@@ -216,3 +228,61 @@ def test_pathological_pdf_fails_permanently_instead_of_stalling_the_worker(
     assert ingestor.run_once() is True
     doc = _document(owner_engine, document_id)
     assert (doc.status, doc.error) == ("failed", "document took too long to process")
+
+
+def test_a_permission_change_in_flight_is_waited_for_not_overwritten(
+    owner_engine: Engine, app_engine: Engine, seeded: SeededTenant, tmp_path: Path
+) -> None:
+    storage = LocalStorage(tmp_path)
+    document_id = _upload(app_engine, storage, _admin(seeded), "a.txt", b"merger terms draft")
+    ingestor = Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50)
+    job = claim_job(app_engine)
+    assert job is not None
+    prepared = ingestor.prepare(job)
+    assert prepared is not None
+    # A permission change is mid-transaction: the document row is locked and changed but
+    # not yet committed when the worker tries to persist.
+    with owner_engine.connect() as conn:
+        tx = conn.begin()
+        conn.execute(
+            update(documents)
+            .where(documents.c.id == document_id)
+            .values(classification="restricted", acl_version=documents.c.acl_version + 1)
+        )
+        worker = threading.Thread(target=ingestor.persist, args=(prepared,))
+        worker.start()
+        time.sleep(0.5)
+        assert worker.is_alive(), "persist must wait for the in-flight permission change"
+        tx.commit()
+    worker.join(timeout=10)
+    doc = _document(owner_engine, document_id)
+    chunks = _chunks(owner_engine, document_id)
+    assert chunks
+    assert {(c.classification, c.acl_version) for c in chunks} == {("restricted", doc.acl_version)}
+
+
+def test_a_worker_whose_job_was_reclaimed_cannot_persist(
+    owner_engine: Engine, app_engine: Engine, seeded: SeededTenant, tmp_path: Path
+) -> None:
+    storage = LocalStorage(tmp_path)
+    document_id = _upload(app_engine, storage, _admin(seeded), "a.txt", b"slow worker text")
+    ingestor = Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50)
+    job = claim_job(app_engine)
+    assert job is not None
+    prepared = ingestor.prepare(job)
+    assert prepared is not None
+    # The first worker stalled past the lease; another worker reclaimed the job.
+    with owner_engine.begin() as conn:
+        conn.execute(
+            update(ingestion_jobs)
+            .where(ingestion_jobs.c.id == job.job_id)
+            .values(attempts=ingestion_jobs.c.attempts + 1, locked_at=func.now())
+        )
+    ingestor.persist(prepared)
+    ingestor.fail(job, RuntimeError("late failure from the first worker"))
+    assert _chunks(owner_engine, document_id) == []
+    with owner_engine.connect() as conn:
+        status = conn.execute(
+            select(ingestion_jobs.c.status).where(ingestion_jobs.c.id == job.job_id)
+        ).scalar_one()
+    assert status == "running"  # still owned by the second worker

@@ -9,10 +9,13 @@ from app.auth.deps import CurrentUser, EngineDep, SettingsDep, require_csrf
 from app.authz import AuthContext, Classification, Role
 from app.documents import service
 from app.documents.storage import LocalStorage
-from app.documents.validation import validate_upload
+from app.documents.validation import UploadRejected, validate_upload
 from app.text import SafeText
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+# One limit for uploads and permission changes alike.
+MAX_SHARED_USERS = 500
 
 
 class DocumentOut(BaseModel):
@@ -37,7 +40,7 @@ class PermissionsUpdate(BaseModel):
 
     classification: Classification
     allowed_roles: list[Role] = Field(default_factory=list, max_length=3)
-    allowed_user_ids: list[UUID] = Field(default_factory=list, max_length=500)
+    allowed_user_ids: list[UUID] = Field(default_factory=list, max_length=MAX_SHARED_USERS)
 
 
 def _storage(request: Request) -> LocalStorage:
@@ -76,6 +79,8 @@ def upload_document(
     allowed_roles: Annotated[list[Role] | None, Form()] = None,
     allowed_user_ids: Annotated[list[UUID] | None, Form()] = None,
 ) -> DocumentOut:
+    if allowed_user_ids and len(allowed_user_ids) > MAX_SHARED_USERS:
+        raise UploadRejected(f"A document can be shared with at most {MAX_SHARED_USERS} people.")
     max_bytes = settings.max_upload_mb * 1024 * 1024
     data = file.file.read(max_bytes + 1)
     validated = validate_upload(file.filename or "", data, max_bytes=max_bytes)

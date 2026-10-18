@@ -2,6 +2,16 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Hardening, Batch D: ingestion
+
+**Done**
+- *P3-6 (lease):* a claim's attempt number is now its lease. Before writing anything (marking processing, storing chunks, recording a failure) the worker locks the job row and checks it still holds that attempt; a worker that stalled past the stale timeout and was overtaken by another can no longer overwrite the new worker's results. Test RED to GREEN.
+- *P3-7:* uploads may share a document with at most 500 people (the same limit as permission changes); more is `422 upload_rejected`, checked before the file is read. Test RED to GREEN.
+- *P3-4 (weak tests):* the permission-change test now requires chunks to exist before checking them, and a new test runs the race for real: a permission change holds the document row mid-transaction while the worker persists; the worker must wait and then copy the new ACL. Removing the `FOR SHARE` lock makes it fail. The deleted-before-processing test now requires the job to finish cleanly on its first attempt; removing the deleted-document guard makes it fail (before, the missing file made ingestion fail anyway, so the test passed without the guard).
+
+345 backend tests.
+**Next** — Batch E (platform).
+
 ## 2026-10-18 — Hardening, Batch C: answering questions; README additions
 
 **Done** (tests RED to GREEN unless noted)

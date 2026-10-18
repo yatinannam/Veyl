@@ -55,6 +55,21 @@ def _finish_job(conn: Connection, job: ClaimedJob, status: str, error: str | Non
     )
 
 
+def _holds_lease(conn: Connection, job: ClaimedJob) -> bool:
+    """The claim's attempt number is its lease. A job reclaimed by another worker (after
+    the stale timeout) has a higher attempt count, so the first worker's late writes are
+    refused. The row lock keeps the check and the write in one step."""
+    row = conn.execute(
+        select(ingestion_jobs.c.status, ingestion_jobs.c.attempts)
+        .where(ingestion_jobs.c.id == job.job_id)
+        .with_for_update()
+    ).one_or_none()
+    held = row is not None and row.status == "running" and row.attempts == job.attempts
+    if not held:
+        logger.warning("ingestion lease lost for job %s (attempt %d)", job.job_id, job.attempts)
+    return held
+
+
 class Ingestor:
     def __init__(
         self,
@@ -78,6 +93,8 @@ class Ingestor:
     def prepare(self, job: ClaimedJob) -> PreparedDocument | None:
         """Extract, chunk, and embed outside any long transaction."""
         with tenant_transaction(self.engine, job.tenant_id) as conn:
+            if not _holds_lease(conn, job):
+                return None
             doc = conn.execute(
                 select(
                     documents.c.storage_key, documents.c.mime_type, documents.c.deleted_at
@@ -111,6 +128,8 @@ class Ingestor:
         waits and then rewrites these chunks itself."""
         job = prepared.job
         with tenant_transaction(self.engine, job.tenant_id) as conn:
+            if not _holds_lease(conn, job):
+                return
             doc = conn.execute(
                 select(
                     documents.c.classification,
@@ -166,6 +185,8 @@ class Ingestor:
         permanent = isinstance(error, ExtractionError)
         message = str(error) if permanent else "ingestion failed"
         with tenant_transaction(self.engine, job.tenant_id) as conn:
+            if not _holds_lease(conn, job):
+                return
             if permanent or job.attempts >= MAX_ATTEMPTS:
                 _finish_job(conn, job, "failed", message)
                 audit.record(

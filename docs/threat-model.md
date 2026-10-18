@@ -65,6 +65,5 @@ Remaining minor findings from the phase reviews, being closed under the [hardeni
 
 - The `.env.example` `AUDIT_HMAC_KEY` placeholder is accepted; it should be rejected in production.
 - Concurrent permission edits: the later save wins without a warning.
-- Ingestion: no lease token on jobs; upload `allowed_user_ids` not capped; two ingestion tests would pass without their guards.
 - Platform: `/readyz` has no statement timeout; `LOG_LEVEL` is not applied to the API; Compose services keep default capabilities.
 - A seed that fails after creating the tenants should say the demo is incomplete; one demo test can pass vacuously.
