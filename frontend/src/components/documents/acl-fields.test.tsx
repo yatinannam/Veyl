@@ -29,4 +29,14 @@ describe("AclFields", () => {
     fireEvent.click(screen.getByLabelText("mia@acme.test"));
     expect(onChange).toHaveBeenLastCalledWith({ ...value, userIds: ["u2"] });
   });
+
+  it("shows grants to people no longer in the directory so they can be removed", () => {
+    const onChange = vi.fn();
+    const withFormer: Acl = { ...value, userIds: ["u-gone"] };
+    render(<AclFields value={withFormer} onChange={onChange} role="admin" people={people} />);
+    const former = screen.getByLabelText("Former or inactive person");
+    expect(former).toBeChecked();
+    fireEvent.click(former);
+    expect(onChange).toHaveBeenLastCalledWith({ ...withFormer, userIds: [] });
+  });
 });

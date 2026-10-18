@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError } from "./api";
+import { api, ApiError, onSessionLost } from "./api";
 
 function respond(status: number, body?: unknown) {
   return vi.fn().mockResolvedValue(
@@ -62,5 +62,22 @@ describe("api", () => {
   it("returns undefined for 204 responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
     await expect(api.delete("/conversations/c1")).resolves.toBeUndefined();
+  });
+
+  it("reports a lost session on any 401 except the sign-in request itself", async () => {
+    const handler = vi.fn();
+    const stop = onSessionLost(handler);
+    const expired = () =>
+      new Response(JSON.stringify({ error: { code: "unauthenticated", message: "x", trace_id: "t" } }), {
+        status: 401,
+      });
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(expired())));
+    await api.get("/documents").catch(() => undefined);
+    expect(handler).toHaveBeenCalledTimes(1);
+    await api.post("/auth/login", {}).catch(() => undefined);
+    expect(handler).toHaveBeenCalledTimes(1);
+    stop();
+    await api.get("/documents").catch(() => undefined);
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

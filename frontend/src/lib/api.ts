@@ -15,6 +15,18 @@ export class ApiError extends Error {
   }
 }
 
+type SessionLostHandler = () => void;
+const sessionLostHandlers = new Set<SessionLostHandler>();
+
+/** Called whenever the API says the session is gone (401), except for the sign-in request
+ * itself. Returns a function that stops listening. */
+export function onSessionLost(handler: SessionLostHandler): () => void {
+  sessionLostHandlers.add(handler);
+  return () => {
+    sessionLostHandlers.delete(handler);
+  };
+}
+
 function readCookie(name: string): string | null {
   const prefix = `${name}=`;
   const match = document.cookie.split("; ").find((part) => part.startsWith(prefix));
@@ -42,6 +54,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   if (response.status === 204) return undefined as T;
   const data: unknown = await response.json().catch(() => null);
+  if (response.status === 401 && path !== "/auth/login") {
+    sessionLostHandlers.forEach((handler) => handler());
+  }
   if (!response.ok) {
     const error = (data as { error?: { code?: string; message?: string; trace_id?: string } } | null)
       ?.error;

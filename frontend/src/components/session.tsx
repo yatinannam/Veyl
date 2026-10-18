@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 
-import { api } from "@/lib/api";
+import { api, onSessionLost } from "@/lib/api";
 import { describeError } from "@/lib/messages";
 import type { Me } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
@@ -29,11 +29,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { data, error } = useApi<Me>("/auth/me");
   const signedOut = error?.status === 401;
 
-  useEffect(() => {
-    // A missing or stale session lands on sign-in. /login itself never redirects, so a
-    // stale cookie cannot cause a loop.
-    if (signedOut) router.replace("/login");
-  }, [signedOut, router]);
+  // A missing, stale, or revoked session lands on sign-in and comes back here afterwards.
+  // /login itself never redirects, so a stale cookie cannot cause a loop.
+  useEffect(
+    () =>
+      onSessionLost(() => {
+        const here = `${window.location.pathname}${window.location.search}`;
+        router.replace(`/login?next=${encodeURIComponent(here)}`);
+      }),
+    [router],
+  );
 
   if (error && !signedOut) return <Centered>{describeError(error)} Reload the page to try again.</Centered>;
   if (!data) return <Centered>Loading your workspace</Centered>;

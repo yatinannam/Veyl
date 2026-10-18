@@ -16,7 +16,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (3/7 tasks) |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (4/7 tasks) |
 
 ## Quickstart
 
@@ -148,7 +148,7 @@ Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + shadcn/ui. The UI never
 How it talks to the API:
 
 - Every call goes to the same origin (`/api/v1/...`) through a small typed client (`src/lib/api.ts`). The session cookie is HttpOnly and never touched by JavaScript; the client only reads the `veyl_csrf` cookie to echo it in `X-CSRF-Token` on state-changing requests. Nothing is kept in `localStorage`.
-- `src/proxy.ts` sends requests without a session cookie to `/login` before rendering. A cookie that is present but no longer valid is caught by the session provider, which loads `/auth/me` and redirects on 401.
+- `src/proxy.ts` sends requests without a session cookie to `/login` before rendering. A cookie that is present but no longer valid, or a session that ends mid-use (revoked, deactivated, expired), is caught on the next API call: any 401 sends you to sign-in and back to the same page afterwards.
 - Permission hints from `/auth/me` only decide which controls to show; every action is checked again by the API, and its errors are shown in plain words (`src/lib/messages.ts`).
 - Sign-in (`/login`) asks for workspace, email, and password and only continues to same-site paths from `?next=`: the target is resolved the way the browser would resolve it and must keep this origin (so `//host`, absolute URLs, backslashes, and tab or newline tricks all land on `/chat`). Signed-in pages share a shell with navigation shown from your permission hints and a clearance meter ("Manager can read up to confidential").
 - Ask (`/chat`): questions and answers in a conversation list; answers are set in a serif face with superscript source numbers that jump to source cards (title, classification, snippet, link to the document). Markers the server did not verify are dropped rather than shown as broken links.

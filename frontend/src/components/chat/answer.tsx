@@ -8,13 +8,16 @@ const MARKER = /^\[(S\d+)\]$/;
 const BOLD = /^\*\*([^*]+)\*\*$/;
 const LIST_ITEM = /^\s*(?:[-*]|\d+\.)\s+/;
 const HEADING = /^#{1,6}\s+/;
+const NUMBERED_ITEM = /^\s*\d+\.\s+/;
 
 /** Snippets are raw document text; drop Markdown heading markers so they read as prose. */
 function plainSnippet(snippet: string): string {
   return snippet.replace(/(^|\s)#{1,6}\s+/g, "$1");
 }
 
-type Block = { kind: "paragraph"; text: string } | { kind: "list"; items: string[] };
+type Block =
+  | { kind: "paragraph"; text: string }
+  | { kind: "list"; ordered: boolean; items: string[] };
 
 /** Models answer in light Markdown. Only paragraphs, bullet or numbered lists, headings
  * (shown as paragraphs), and bold are recognised; everything stays text, never HTML. */
@@ -26,7 +29,11 @@ function toBlocks(content: string): Block[] {
     .map((chunk) => {
       const lines = chunk.split("\n");
       if (lines.every((line) => LIST_ITEM.test(line))) {
-        return { kind: "list", items: lines.map((line) => line.replace(LIST_ITEM, "")) };
+        return {
+          kind: "list",
+          ordered: lines.every((line) => NUMBERED_ITEM.test(line)),
+          items: lines.map((line) => line.replace(LIST_ITEM, "")),
+        };
       }
       return { kind: "paragraph", text: chunk.replace(HEADING, "") };
     });
@@ -44,17 +51,16 @@ export function Answer({
 }) {
   const byLabel = new Map(citations.map((c) => [c.label, c]));
 
-  function inline(text: string) {
-    return text.split(/(\[S\d+\]|\*\*[^*]+\*\*)/g).map((part, index) => {
-      const bold = BOLD.exec(part);
-      if (bold) return <strong key={index} className="font-semibold">{bold[1]}</strong>;
+  function markers(text: string, keyPrefix: string) {
+    return text.split(/(\[S\d+\])/g).map((part, index) => {
+      const key = `${keyPrefix}-${index}`;
       const match = MARKER.exec(part);
-      if (!match) return <Fragment key={index}>{part}</Fragment>;
+      if (!match) return <Fragment key={key}>{part}</Fragment>;
       const citation = byLabel.get(match[1]);
       if (!citation) return null;
       const number = citation.label.slice(1);
       return (
-        <sup key={index}>
+        <sup key={key}>
           <a
             href={`#${idPrefix}-${citation.label}`}
             aria-label={`Source ${number}: ${citation.document_title}`}
@@ -67,16 +73,37 @@ export function Answer({
     });
   }
 
+  function inline(text: string) {
+    return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+      const bold = BOLD.exec(part);
+      return bold ? (
+        <strong key={index} className="font-semibold">
+          {markers(bold[1], `b${index}`)}
+        </strong>
+      ) : (
+        <Fragment key={index}>{markers(part, `t${index}`)}</Fragment>
+      );
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-3 font-serif text-[1.0625rem] leading-relaxed">
         {toBlocks(content).map((block, index) =>
           block.kind === "list" ? (
-            <ul key={index} className="list-disc space-y-1 pl-6">
-              {block.items.map((item, itemIndex) => (
-                <li key={itemIndex}>{inline(item)}</li>
-              ))}
-            </ul>
+            block.ordered ? (
+              <ol key={index} className="list-decimal space-y-1 pl-6">
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{inline(item)}</li>
+                ))}
+              </ol>
+            ) : (
+              <ul key={index} className="list-disc space-y-1 pl-6">
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{inline(item)}</li>
+                ))}
+              </ul>
+            )
           ) : (
             <p key={index} className="whitespace-pre-line">
               {inline(block.text)}

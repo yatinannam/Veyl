@@ -17,12 +17,21 @@ export default function AskPage() {
   const conversations = useApi<ConversationSummary[]>("/conversations");
   const [activeId, setActiveId] = useState<string | null>(null);
   const detail = useApi<ConversationDetail>(activeId ? `/conversations/${activeId}` : null);
-  const [pending, setPending] = useState<string | null>(null);
+  // The question being asked, kept on screen until its answer has loaded.
+  const [pending, setPending] = useState<{ question: string; answered: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const messages = activeId ? (detail.data?.messages ?? []) : [];
+  const asking = pending !== null && !pending.answered;
+  const shownPending = pending !== null && (asking || detail.loading) ? pending.question : null;
+  const loadError = detail.error ?? conversations.error;
+
+  function open(id: string | null) {
+    setPending(null);
+    setActiveId(id);
+  }
 
   async function ask(question: string): Promise<boolean> {
-    setPending(question);
+    setPending({ question, answered: false });
     setError(null);
     try {
       const answer = await api.post<QueryResponse>("/query", {
@@ -32,19 +41,19 @@ export default function AskPage() {
       if (answer.conversation_id === activeId) detail.reload();
       else setActiveId(answer.conversation_id);
       conversations.reload();
+      setPending({ question, answered: true });
       return true;
     } catch (failure) {
       setError(describeError(failure));
-      return false;
-    } finally {
       setPending(null);
+      return false;
     }
   }
 
   async function remove(id: string) {
     try {
       await api.delete(`/conversations/${id}`);
-      if (id === activeId) setActiveId(null);
+      if (id === activeId) open(null);
       conversations.reload();
     } catch (failure) {
       setError(describeError(failure));
@@ -54,7 +63,7 @@ export default function AskPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
       <aside className="space-y-3">
-        <Button variant="outline" className="w-full" onClick={() => setActiveId(null)}>
+        <Button variant="outline" className="w-full" onClick={() => open(null)}>
           New conversation
         </Button>
         <nav aria-label="Conversations" className="space-y-1">
@@ -62,7 +71,7 @@ export default function AskPage() {
             <button
               key={conversation.id}
               type="button"
-              onClick={() => setActiveId(conversation.id)}
+              onClick={() => open(conversation.id)}
               aria-current={conversation.id === activeId ? "true" : undefined}
               className={cn(
                 "block w-full rounded-md px-2.5 py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
@@ -78,7 +87,7 @@ export default function AskPage() {
 
       <section aria-label="Conversation" className="flex min-h-[70vh] flex-col gap-6">
         <div className="flex-1 space-y-8">
-          {messages.length === 0 && !pending ? (
+          {messages.length === 0 && !shownPending && !loadError ? (
             <div className="max-w-xl space-y-2 pt-6">
               <h1 className="text-xl font-semibold tracking-tight">Ask a question</h1>
               <p className="text-sm text-muted-foreground">
@@ -99,17 +108,17 @@ export default function AskPage() {
               </article>
             ),
           )}
-          {pending ? (
+          {shownPending ? (
             <div className="max-w-2xl space-y-2" aria-live="polite">
               <p className="text-xs font-medium text-muted-foreground">You asked</p>
-              <p className="text-base font-medium">{pending}</p>
+              <p className="text-base font-medium">{shownPending}</p>
               <p className="text-sm text-muted-foreground">Searching the documents you can read</p>
             </div>
           ) : null}
         </div>
         <div className="sticky bottom-0 space-y-2 border-t border-border bg-background pt-4 pb-2">
-          <ErrorText>{error}</ErrorText>
-          <Composer onAsk={ask} disabled={pending !== null} />
+          <ErrorText>{error ?? (loadError ? describeError(loadError) : null)}</ErrorText>
+          <Composer onAsk={ask} disabled={asking} />
           {activeId ? (
             <div className="flex justify-end">
               <Button variant="ghost" size="sm" onClick={() => void remove(activeId)}>

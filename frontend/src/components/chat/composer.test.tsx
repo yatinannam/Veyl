@@ -22,4 +22,15 @@ describe("Composer", () => {
     ask("What flights may I book?");
     await waitFor(() => expect(screen.getByLabelText("Your question")).toHaveValue(""));
   });
+
+  it("does not send while an input method is composing text", () => {
+    const onAsk = vi.fn().mockResolvedValue(true);
+    render(<Composer onAsk={onAsk} disabled={false} />);
+    const box = screen.getByLabelText("Your question");
+    fireEvent.change(box, { target: { value: "nihongo" } });
+    fireEvent.keyDown(box, { key: "Enter", isComposing: true });
+    expect(onAsk).not.toHaveBeenCalled();
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(onAsk).toHaveBeenCalledWith("nihongo");
+  });
 });

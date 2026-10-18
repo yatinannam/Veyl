@@ -2,6 +2,21 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 4: dashboard polish
+
+**Done** (each with a test that failed first) — the eight user-facing minors deferred from the Phase 5 review:
+1. Any 401 after the page has loaded (session revoked, user deactivated, expired) sends the user to `/login?next=<current page>`; the sign-in request itself is excluded.
+2. Cancel resets the upload form, including the file input (the form remounts).
+3. Chat keeps the question on screen until its new conversation has loaded (no empty-state flash), and conversation load errors are shown.
+4. Source markers inside bold text become links; numbered lists stay numbered.
+5. Enter during IME composition does not send.
+6. Deactivating a person asks for confirmation.
+7. Audit date filters cover whole local days.
+8. The permission editor shows grants to people no longer in the directory as "Former or inactive person", so they can be removed.
+
+The session handler reads `window.location` when it fires rather than calling `usePathname()`, which Next 16 rejects outside Suspense on prerendered dynamic routes (the build caught it). Test setup gains a minimal `<dialog>` shim (jsdom has none). 53 frontend tests.
+**Next** — motion with GSAP (Task 5).
+
 ## 2026-10-18 — Phase 6, Task 3: CI demo smoke
 
 **Done** — `docker/smoke/demo.sh`: through the edge, Mia's revenue question never cites the board financials, Alice's does, and Gary sees none of Acme's documents and gets no Acme answer. The Compose smoke job now seeds the demo with `docker compose run --rm seed` and runs it (before the login rate-limit probe). Passed locally against a scratch stack with real embeddings and the LLM stand-in.

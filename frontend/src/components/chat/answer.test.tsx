@@ -75,4 +75,17 @@ describe("Answer snippets", () => {
     );
     expect(screen.getByText("Travel policy Employees may book economy flights.")).toBeInTheDocument();
   });
+
+  it("links source markers inside bold text and keeps numbered lists numbered", () => {
+    render(
+      <Answer
+        content={"**Economy only [S1]**\n\n1. Book early\n2. Keep receipts"}
+        citations={citations}
+        idPrefix="m6"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Source 1: Travel policy" })).toBeInTheDocument();
+    expect(screen.queryByText(/\[S1\]/)).not.toBeInTheDocument();
+    expect(screen.getByText("Book early").closest("ol")).not.toBeNull();
+  });
 });

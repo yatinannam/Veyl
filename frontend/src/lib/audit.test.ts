@@ -7,14 +7,14 @@ describe("buildAuditQuery", () => {
     expect(buildAuditQuery({ eventType: "", userId: "", from: "", to: "" })).toBe("limit=50");
   });
 
-  it("turns dates into a whole-day range in UTC", () => {
+  it("turns dates into whole local days, sent as UTC instants", () => {
     const query = new URLSearchParams(
       buildAuditQuery({ eventType: "rag.query", userId: "u1", from: "2026-10-01", to: "2026-10-02" }, "cur"),
     );
     expect(query.get("event_type")).toBe("rag.query");
     expect(query.get("user_id")).toBe("u1");
-    expect(query.get("from")).toBe("2026-10-01T00:00:00Z");
-    expect(query.get("to")).toBe("2026-10-02T23:59:59Z");
+    expect(query.get("from")).toBe(new Date(2026, 9, 1, 0, 0, 0, 0).toISOString());
+    expect(query.get("to")).toBe(new Date(2026, 9, 2, 23, 59, 59, 999).toISOString());
     expect(query.get("cursor")).toBe("cur");
   });
 

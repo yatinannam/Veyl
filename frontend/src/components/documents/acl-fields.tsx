@@ -35,6 +35,8 @@ export function AclFields({
   people: DirectoryEntry[];
 }) {
   const levels = CLASSIFICATIONS.filter((level) => withinClearance(role, level));
+  // Grants to people the directory no longer lists (deactivated): visible so they can be removed.
+  const former = value.userIds.filter((id) => !people.some((person) => person.id === id));
   return (
     <div className="grid gap-5">
       <Field
@@ -73,7 +75,7 @@ export function AclFields({
           Admins can always read documents in this workspace, and the uploader keeps access.
         </p>
       </fieldset>
-      {people.length > 0 ? (
+      {people.length > 0 || former.length > 0 ? (
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-medium">Also share with</legend>
           <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-md border border-border p-2.5">
@@ -84,6 +86,15 @@ export function AclFields({
                   onChange={() => onChange({ ...value, userIds: toggle(value.userIds, person.id) })}
                 />
                 {person.email}
+              </label>
+            ))}
+            {former.map((id) => (
+              <label key={id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked
+                  onChange={() => onChange({ ...value, userIds: toggle(value.userIds, id) })}
+                />
+                Former or inactive person
               </label>
             ))}
           </div>

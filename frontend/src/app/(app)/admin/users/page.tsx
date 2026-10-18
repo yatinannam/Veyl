@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { ErrorText, Field, Input, Select } from "@/components/form";
+import { AccessButton } from "@/components/people/access-button";
 import { RoleControl } from "@/components/people/role-control";
 import { useSession } from "@/components/session";
 import { Button } from "@/components/ui/button";
@@ -109,13 +110,10 @@ export default function PeoplePage() {
                     {self ? (
                       <span className="text-muted-foreground">Active</span>
                     ) : (
-                      <Button
-                        variant={user.is_active ? "outline" : "secondary"}
-                        size="sm"
-                        onClick={() => void update(user, { is_active: !user.is_active })}
-                      >
-                        {user.is_active ? "Deactivate" : "Reactivate"}
-                      </Button>
+                      <AccessButton
+                        user={user}
+                        onChange={(isActive) => void update(user, { is_active: isActive })}
+                      />
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{formatDate(user.created_at)}</td>

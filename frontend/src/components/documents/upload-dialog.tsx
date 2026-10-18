@@ -26,6 +26,8 @@ export function UploadDialog({
   const [acl, setAcl] = useState<Acl>(INITIAL_ACL);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Remounting the form is the only way to clear a file input.
+  const [formKey, setFormKey] = useState(0);
 
   function close() {
     dialog.current?.close();
@@ -33,6 +35,7 @@ export function UploadDialog({
     setTitle("");
     setAcl(INITIAL_ACL);
     setError(null);
+    setFormKey((key) => key + 1);
   }
 
   async function submit(event: FormEvent) {
@@ -66,7 +69,7 @@ export function UploadDialog({
         className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border border-border bg-card p-0 text-foreground backdrop:bg-foreground/40"
         onClose={close}
       >
-        <form onSubmit={submit} className="grid gap-5 p-6">
+        <form key={formKey} onSubmit={submit} className="grid gap-5 p-6">
           <div className="space-y-1">
             <h2 id="upload-title" className="text-lg font-semibold tracking-tight">
               Upload a document

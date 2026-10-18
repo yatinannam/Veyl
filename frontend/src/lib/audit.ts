@@ -28,12 +28,18 @@ export interface AuditFilters {
 
 export const NO_FILTERS: AuditFilters = { eventType: "", userId: "", from: "", to: "" };
 
+function localDay(day: string, h: number, m: number, s: number, ms: number): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year, month - 1, date, h, m, s, ms).toISOString();
+}
+
 export function buildAuditQuery(filters: AuditFilters, cursor?: string | null): string {
   const params = new URLSearchParams();
   if (filters.eventType) params.set("event_type", filters.eventType);
   if (filters.userId) params.set("user_id", filters.userId);
-  if (filters.from) params.set("from", `${filters.from}T00:00:00Z`);
-  if (filters.to) params.set("to", `${filters.to}T23:59:59Z`);
+  // Date inputs are local calendar days; send the matching instants in UTC.
+  if (filters.from) params.set("from", localDay(filters.from, 0, 0, 0, 0));
+  if (filters.to) params.set("to", localDay(filters.to, 23, 59, 59, 999));
   if (cursor) params.set("cursor", cursor);
   params.set("limit", "50");
   return params.toString();
