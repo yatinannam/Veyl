@@ -12,7 +12,7 @@ Newest entries first. Each entry: what was done, what's next, anything blocked.
 - *P2-3:* the session-expiry test now asserts exactly the TTL; computing expiry on the app clock makes it fail (mutation check).
 - *P2-4:* a non-ASCII CSRF cookie is rejected with 403; this already worked, the test was missing.
 
-336 backend tests.
+331 backend tests.
 **Next** — Batch C (answering questions).
 
 ## 2026-10-18 — Hardening, Batch A: NUL bytes and invalid text
