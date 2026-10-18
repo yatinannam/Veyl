@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 6: documentation
+
+**Done** — `docs/architecture.md` (components and trust boundaries, identity per request, where each permission check lives, ingestion and query pipelines, data model summary, code map); `docs/threat-model.md` (assets, actors, boundaries, T1 to T17 each mapped to real test files and test names, verified by a script that every referenced file and test exists; known limitations; open review items); `docs/api.md` (every endpoint, who may call it, curl examples with responses captured from a running stack, error codes, audit event types); `docs/demo.md` (seeding, who can read what, a seven-step walkthrough with expected results, the same checks with curl, reset). README rewritten to lead with the guarantee and a four-command quickstart with the demo; the long technical sections moved into the docs (details only the README held were added to `architecture.md` first).
+**Next** — fresh-clone check, live walkthrough with the real model, demo screenshots, final review (Task 7).
+
 ## 2026-10-18 — Phase 6, Task 5: motion
 
 **Done** — `useReveal` (GSAP `useGSAP` + `gsap.matchMedia`): the sign-in panel's four levels appear in order, a newly arrived answer's source cards slide in one after another (reopened history does not animate), and the clearance meter fills once. 350 ms tweens that clear their inline styles; nothing at all under `prefers-reduced-motion: reduce` or without `matchMedia`. Verified in Chromium: with motion, items start transparent and settle at full opacity with no leftover styles; with reduced motion everything is visible on the first frame and no transform is applied. Lenis considered and not used for app screens (D-051). Decisions D-050, D-051. 55 frontend tests.
