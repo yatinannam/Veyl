@@ -1,67 +1,147 @@
+<div align="center">
+
 # Veyl
 
+**Permission-aware, multi-tenant retrieval-augmented generation.**<br>
+Answers from your company's documents, never beyond what you are cleared to read.
+
 [![CI](https://github.com/yatinannam/Veyl/actions/workflows/ci.yml/badge.svg)](https://github.com/yatinannam/Veyl/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2f5d8a.svg)](LICENSE)
+![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.143-009688?logo=fastapi&logoColor=white)
+![PostgreSQL 16 with pgvector](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-4169E1?logo=postgresql&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
-**Answers from your company's documents, never beyond what you are cleared to read.**
+[Quickstart](#quickstart) &middot; [Demo walkthrough](docs/demo.md) &middot; [Architecture](docs/architecture.md) &middot; [Threat model](docs/threat-model.md) &middot; [API](docs/api.md)
 
-Veyl is a multi-tenant retrieval-augmented generation (RAG) platform. People ask questions in plain language and get answers with verified citations. Permissions are enforced *inside retrieval*: text a person may not read is never fetched, never sent to the language model, and never cited. Every question is audited.
+</div>
 
-It runs entirely on free tiers: local embeddings (bge-small via fastembed) and any OpenAI-compatible free LLM (Groq by default; Gemini or local Ollama also work).
-
-| Ask, with sources | The same question from a member |
+| An admin asks about Q3 revenue | A member asks the same question |
 |---|---|
 | ![An admin's answer citing the restricted board financials](docs/screenshots/ask.png) | ![A member asking the same question gets no figures and no citation](docs/screenshots/member-ask.png) |
 
-## What it guarantees
+Veyl lets people ask questions of their organisation's internal documents in plain language and returns answers with server-verified citations. Every document carries a classification and an access list, and those permissions are enforced **inside retrieval**: text a person may not read is never fetched from the database, never placed in the language model's context, and never cited. Tenants are isolated by Postgres row-level security, every question is audited, and the whole stack runs on free tiers.
 
-- **Tenants never see each other.** Postgres row-level security on every table, with the tenant taken only from the server-side session.
-- **Nobody reads above their clearance or without a grant.** Every document has a classification (public, internal, confidential, restricted) and a list of roles and people. The rule is applied in the SQL of the vector search and then re-checked in Python for every row; any disagreement aborts the request.
-- **The model only sees what the asker may read.** If nothing authorized is relevant, the model is not called at all.
-- **Citations are verified on the server.** They come from the authorized excerpts, never from the model's text.
-- **Permission changes apply to the very next question**, including answers already in a conversation: an answer built from anything you can no longer read is hidden.
-- **Failures fail closed.** No fallback path skips the checks when the embedder, database, or model is down.
-- **An append-only audit log** records sign-ins, permission changes, and every question (as a keyed reference, not text, by default). The application can only add to it, and a database trigger also rejects edits and deletions by the schema owner (a deliberate owner or a superuser could still disable the trigger; see the threat model).
+## Contents
 
-Each guarantee is backed by tests mapped in the [threat model](docs/threat-model.md); the [demo walkthrough](docs/demo.md) runs as one of them.
+- [Why Veyl](#why-veyl)
+- [Security guarantees](#security-guarantees)
+- [Quickstart](#quickstart)
+- [The demo](#the-demo)
+- [Dashboard](#dashboard)
+- [Architecture](#architecture)
+- [Authorization model](#authorization-model)
+- [Data model](#data-model)
+- [Testing](#testing)
+- [Configuration](#configuration)
+- [LLM providers](#llm-providers)
+- [Operations](#operations)
+- [Development](#development)
+- [Project structure](#project-structure)
+- [Limitations](#limitations)
+- [Documentation](#documentation)
+- [Project status](#project-status)
+- [License](#license)
+
+## Why Veyl
+
+Most retrieval-augmented generation systems find the most similar text first and filter it afterwards, if at all. By then confidential passages may already be in the prompt, in a cache, or in the answer. Veyl treats authorization as part of retrieval itself.
+
+| Concern | Typical RAG pipeline | Veyl |
+|---|---|---|
+| When permissions apply | After retrieval, or by asking the model to ignore what the user may not see | In the SQL of the vector search, then re-checked in Python for every row |
+| Tenant isolation | Application-level filters | Postgres row-level security on every table, tenant set per transaction from the session |
+| Nothing relevant the user may read | The model answers anyway | The model is not called |
+| Citations | Whatever the model writes | Matched on the server against the excerpts actually supplied |
+| Permission revoked | Old answers and caches keep the content | The next question reflects it; earlier answers built from it are hidden |
+| Prompt injection in a document | Can ask for data the model was given | Can only distort answers from data the user may already read |
+| Dependency failure | Silent fallback paths | Fails closed, with an audit record |
+| Audit | Optional logging | Append-only table; questions stored as keyed references by default |
+
+## Security guarantees
+
+- **Tenants never see each other.** Row-level security is forced on every table; the tenant comes only from the server-side session, and with no tenant set every table appears empty.
+- **No one reads above their clearance or without a grant.** The read rule (tenant, clearance, role or named grant, document ready and current) runs inside the vector query, and every returned row is re-checked in Python; any disagreement aborts the request.
+- **The model sees only what the asker may read**, framed as untrusted data, with no tools. If nothing authorized is relevant, it is not called at all.
+- **Citations are built from authorized rows**, never from model text; markers that do not match a supplied excerpt are removed.
+- **Permission changes apply to the very next question.** Chunk ACLs are rewritten in the same transaction, stale chunks are invisible, the retrieval cache is invalidated, and earlier answers that used a revoked source are hidden.
+- **Failures fail closed.** Embedding, database, and model errors return an error and an audit record, never a fallback that skips a check.
+- **Every question, sign-in, and permission change is audited** in an append-only log. The application role can only insert and read; a trigger also rejects edits by the schema owner. Questions are stored as HMAC references unless a workspace opts into plaintext.
+
+Each guarantee is mapped to the tests that prove it in the [threat model](docs/threat-model.md), which covers seventeen threats.
 
 ## Quickstart
 
-Requires Docker Desktop (or Docker Engine with Compose v2). The commands work in bash, zsh, Git Bash, and PowerShell (run them one line at a time). In cmd, use `copy .env.example .env` instead of `cp`.
+Requires Docker Desktop, or Docker Engine with Compose v2. Commands work in bash, zsh, Git Bash, and PowerShell, one line at a time (in cmd, use `copy` instead of `cp`).
 
 ```bash
 git clone https://github.com/yatinannam/Veyl.git
 cd Veyl
-cp .env.example .env        # change the passwords (letters, digits, hyphens); add a free LLM_API_KEY
+cp .env.example .env
 docker compose up --build -d
 docker compose run --rm -e VEYL_DEMO_PASSWORD=demo-password-123 seed
 ```
 
-Open http://127.0.0.1:3000 and sign in to workspace `acme` as `alice@acme.test` (admin), `mark@acme.test` (manager), or `mia@acme.test` (member), or to `globex` as `gina@globex.test` or `gary@globex.test`, all with the demo password. Then follow the [demo walkthrough](docs/demo.md).
+Before `up`, edit `.env`: change the three database passwords and `AUDIT_HMAC_KEY` (letters, digits, and hyphens), and set `LLM_API_KEY` to a free [Groq](https://console.groq.com) key. Then open **http://127.0.0.1:3000**.
 
-**No LLM key, or offline?** Use the bundled stand-in, which answers from the best-matching source. Name the same two files on **every** `docker compose` command, including the seed; otherwise Compose recreates the API without the stand-in:
+| Workspace | Email | Role | Can read |
+|---|---|---|---|
+| `acme` | `alice@acme.test` | Admin | Everything in Acme, including the restricted board financials |
+| `acme` | `mark@acme.test` | Manager | Handbook, IT FAQ, engineering roadmap, his own performance review |
+| `acme` | `mia@acme.test` | Member | Handbook and IT FAQ only |
+| `globex` | `gina@globex.test` | Admin | Globex's merger plan |
+| `globex` | `gary@globex.test` | Member | Nothing in Globex, and never anything from Acme |
+
+Every account uses the demo password.
+
+<details>
+<summary><b>No LLM key, or offline</b></summary>
+
+Use the bundled stand-in, which answers from the best-matching excerpt. Name both files on **every** Compose command, including the seed; otherwise Compose recreates the API without the stand-in.
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build -d
 docker compose -f docker-compose.yml -f docker-compose.stub.yml run --rm -e VEYL_DEMO_PASSWORD=demo-password-123 seed
 ```
 
-**Reset** everything, including the database and uploads: `docker compose down -v`.
+</details>
 
-**A second copy** of the repository on the same machine would share the first one's Compose project (`name: veyl`) and data. Give it its own by adding `-p veyl-copy` to every `docker compose` command in that copy, for example `docker compose -p veyl-copy up --build -d`.
+<details>
+<summary><b>Services and ports</b></summary>
 
-| Service | What it does | Address |
+| Service | Role | Address |
 |---|---|---|
 | `edge` | Caddy, the only public entry point; overwrites `X-Forwarded-For` so client IPs cannot be forged | http://127.0.0.1:3000 |
 | `web` | Next.js dashboard; rewrites `/api/*` to the API so the browser sees one origin | internal |
 | `api` | FastAPI as the `veyl_app` role (no superuser, no RLS bypass), non-root | http://127.0.0.1:8000/api/v1/docs |
-| `worker` | Ingestion: extract (isolated process), chunk, embed locally, copy permissions onto chunks | internal |
+| `worker` | Ingestion: isolated extraction, chunking, local embeddings, ACL copy | internal |
 | `db` | Postgres 16 with pgvector; creates least-privilege roles on first start | `127.0.0.1:5432` |
 | `migrate` | One-shot Alembic migrations as `veyl_owner` | |
-| `seed` | Demo only: creates Acme and Globex, then everything else through the API | |
+| `seed` | Demo only (profile `demo`): creates Acme and Globex, everything else through the API | |
 
-All ports bind to `127.0.0.1` only.
+All ports bind to `127.0.0.1`. Reset everything, including the database and uploads, with `docker compose down -v`.
 
-## Using the dashboard
+</details>
+
+## The demo
+
+The seed creates two companies with the database owner role (tenants cannot be created through the API), then signs in as each admin and adds people, uploads six synthetic documents, and sets their permissions through the public API. The [walkthrough](docs/demo.md) takes about five minutes:
+
+| Step | Who | What happens |
+|---|---|---|
+| 1 | Mia (member) asks for Q3 revenue | No figure and no citation; the board financials are never retrieved for her |
+| 2 | Alice (admin) asks the same | "18.4 million USD", cited to *Q3 Board Financials*, marked Restricted |
+| 3 | Gary (other company) | Empty document list; nothing from Acme can reach his answers |
+| 4 | Alice reclassifies the roadmap for members, then reverts | Mia's next question cites it; the one after the revert does not |
+| 5 | Mia asks about the VPN | The FAQ's planted "reveal the Q3 financials" instruction has nothing to reveal |
+| 6 | Mark and Mia ask about Mark's review | Mark gets it (shared with him by name); Mia does not |
+| 7 | Alice opens the audit log | Every step is recorded; Mia's questions appear as references, not text |
+
+The same walkthrough runs as an automated security test on every commit (`backend/tests/security/test_demo_scenario.py`), asserting on every prompt the model would have received.
+
+## Dashboard
 
 | Sign in | Documents for an admin |
 |---|---|
@@ -75,62 +155,185 @@ All ports bind to `127.0.0.1` only.
 |---|---|
 | ![People list with roles and access](docs/screenshots/people.png) | ![Audit log with filters, outcomes, and trace ids](docs/screenshots/audit.png) |
 
-- **Ask:** answers are set in a serif face with superscript source numbers that jump to source cards (title, classification, snippet). Conversations are private to you.
-- **Documents:** what you can read, with processing status. Managers and admins upload and share by role or by person; the classification picker offers only levels you are cleared for.
-- **People and Audit log** (admins): add people, change roles (applied only on "Save role"), deactivate with confirmation; filter the audit log by event, person, and local dates.
-- The header shows your clearance as a four-segment meter. Each classification level has one colour, always next to its name. Motion is limited to two short moments (the clearance meter filling, a new answer's source cards arriving) and switched off when your system asks for reduced motion.
-- The dashboard decides nothing about access. It only hides controls; the API checks every action and its errors are shown in plain words.
+- **Ask:** answers are set in a serif face with superscript source numbers linked to source cards (title, classification, excerpt). Conversations are private to their owner.
+- **Documents:** what you can read, with live processing status. Managers and admins upload and share by role or by person; the classification picker offers only levels within the uploader's clearance.
+- **People and audit log** (admins): add people, change roles (applied only on an explicit save), deactivate with confirmation; filter the audit log by event, person, and date.
+- **Design:** one colour per classification level, always beside its name; a four-segment clearance meter in the header; motion limited to two short moments and disabled under reduced motion.
+- **No authority in the browser:** the dashboard only hides controls. The API checks every action, and an expired or revoked session returns the user to sign-in and back.
 
-## How it works
+## Architecture
 
 ```mermaid
 flowchart LR
-    B[Browser] --> E[edge] --> W[web] -->|/api| A[api]
-    A -->|veyl_app + RLS| D[(Postgres + pgvector)]
-    K[worker] -->|veyl_app + RLS| D
-    A -->|authorized excerpts only| L[LLM]
+    B[Browser] -->|"127.0.0.1:3000"| E[edge<br/>Caddy]
+    E --> W[web<br/>Next.js]
+    W -->|"/api/*"| A[api<br/>FastAPI]
+    A -->|"veyl_app + RLS"| D[(Postgres 16<br/>pgvector)]
+    K[worker<br/>ingestion] -->|"veyl_app + RLS"| D
+    A -.->|"authorized excerpts only"| L[LLM provider]
+    M[migrate] -->|veyl_owner| D
 ```
 
-1. Every request resolves the session cookie in the database to a user, tenant, and role, and sets the tenant for row-level security in that transaction.
-2. A question is embedded and searched with the full read rule inside the SQL, then every row is re-checked in Python.
-3. The model gets only those excerpts, framed as untrusted data, plus your re-authorized conversation history; it has no tools.
-4. Citations are matched against what was supplied, the exchange is stored, and the question is audited.
+**Answering a question** (`POST /api/v1/query`):
 
-Read more: [architecture](docs/architecture.md), [threat model](docs/threat-model.md), [API reference](docs/api.md), [demo](docs/demo.md), [design spec](docs/superpowers/specs/2026-10-15-veyl-design.md), [decision log](docs/decisions.md), [dev log](docs/devlog.md).
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant A as API
+    participant D as Postgres (RLS)
+    participant L as LLM
+    U->>A: question (session cookie, CSRF header)
+    A->>D: resolve session, set tenant for this transaction
+    A->>D: load own conversation, re-authorize history
+    A->>D: vector search with the read rule in SQL
+    D-->>A: authorized rows only
+    A->>A: re-check every row in Python (mismatch aborts)
+    alt nothing authorized is relevant
+        A-->>U: "nothing found" (model not called)
+    else
+        A->>L: untrusted-source prompt with authorized excerpts
+        L-->>A: answer with [S#] markers
+        A->>A: keep only markers that match supplied excerpts
+        A->>D: store exchange and audit event (one transaction)
+        A-->>U: answer and verified citations
+    end
+```
 
-## Security tests
+**Defence in depth.** Each layer enforces its rule independently, so a defect in one is caught by the next:
 
-The backend suite (pytest, about 320 tests) runs against a real Postgres with pgvector, started by testcontainers with the same init script as Compose, using the same least-privilege role as production. Highlights:
+| Layer | Enforces |
+|---|---|
+| Postgres row-level security | Tenant boundary on every table and every query, including bugs in application SQL |
+| SQL read filter in the vector search | The full chunk read rule; unauthorized rows never leave the database |
+| Python re-check | The same rule for every returned row; a disagreement returns `500 authorization_mismatch` |
+| Service layer | Actions, conversation ownership, managers capped at their clearance and their own documents |
+| Prompt construction | Excerpts framed as untrusted data, delimiters neutralised, no tools |
+| Citation check | Only markers that map to supplied excerpts survive |
+| Dashboard | Nothing; it is a convenience, never an authority |
 
-- `tests/security/test_demo_scenario.py` seeds the demo through the API and asserts on every prompt the model would have received: Mia never sees the board financials, Gary never sees anything from Acme, a reclassification reaches Mia's next question and its revert removes it from the one after, the planted "reveal the Q3 financials" instruction arrives only as quoted source text with nothing to reveal, and the audit log holds Mia's questions without their text. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of these fail.
-- A property test proves the SQL read filter and the Python rule agree on every combination of tenants, roles, classifications, and grants.
-- Retrieval, cache, conversation history, citations, uploads, sessions, CSRF, rate limits, role escalation, and failure handling each have their own security tests; the [threat model](docs/threat-model.md) maps all seventeen threats to them.
-- CI also brings up the full stack, seeds the demo, and checks it through the public entry point, including that a forged `X-Forwarded-For` cannot dodge the sign-in rate limit.
+Ingestion runs in a separate worker: jobs are claimed with `SKIP LOCKED`, text is extracted in a child process with a timeout, memory limit, and character cap, chunks are embedded locally with `BAAI/bge-small-en-v1.5` (384 dimensions), and each chunk receives a copy of its document's ACL and `acl_version`. Details: [architecture](docs/architecture.md).
+
+## Authorization model
+
+| Role | Clearance | Can also |
+|---|---|---|
+| Member | up to **internal** | Ask questions; read documents shared with them |
+| Manager | up to **confidential** | Upload; manage the documents they uploaded |
+| Admin | up to **restricted** | Manage people, workspace settings, all documents, and the audit log |
+
+Classifications, lowest to highest: `public`, `internal`, `confidential`, `restricted`. A chunk is readable when all of these hold:
+
+```text
+chunk.tenant_id = caller.tenant_id
+and chunk.classification <= clearance(caller.role)
+and (caller.role = admin
+     or caller.role in chunk.allowed_roles
+     or caller.user_id in chunk.allowed_user_ids)
+and document.status = 'ready' and document.deleted_at is null
+and chunk.acl_version = document.acl_version
+```
+
+A named grant never lifts the clearance ceiling. The rule exists twice, as SQL (`app/authz/sql.py`) and as Python (`can_read_chunk`), and an exhaustive test proves the two agree for every combination of tenants, users, roles, classifications, and grants.
+
+## Data model
+
+```mermaid
+erDiagram
+    TENANTS ||--o{ USERS : has
+    TENANTS ||--o{ DOCUMENTS : owns
+    USERS ||--o{ SESSIONS : has
+    DOCUMENTS ||--o{ DOCUMENT_CHUNKS : "split into"
+    DOCUMENTS ||--o{ INGESTION_JOBS : "processed by"
+    USERS ||--o{ CONVERSATIONS : owns
+    CONVERSATIONS ||--o{ MESSAGES : contains
+    TENANTS ||--o{ AUDIT_EVENTS : records
+    DOCUMENTS {
+        uuid tenant_id
+        classification classification
+        role_array allowed_roles
+        uuid_array allowed_user_ids
+        int acl_version
+        status status
+    }
+    DOCUMENT_CHUNKS {
+        uuid tenant_id
+        vector_384 embedding
+        classification classification
+        role_array allowed_roles
+        uuid_array allowed_user_ids
+        int acl_version
+    }
+    MESSAGES {
+        uuid_array source_chunk_ids
+        uuid_array cited_chunk_ids
+        uuid trace_id
+    }
+```
+
+Every table carries `tenant_id`, forced row-level security, and composite foreign keys that make cross-tenant references impossible. Two database roles separate duties: `veyl_owner` runs migrations; `veyl_app` serves requests with column-level grants, no `BYPASSRLS`, and no superuser rights. The retrieval cache stores chunk ids only, never content. The full schema is in the [design spec](docs/superpowers/specs/2026-10-15-veyl-design.md#52-entity-relationships).
+
+## Testing
+
+| Suite | Size | Runs against |
+|---|---|---|
+| Backend unit | 88 test functions | Policy, chunker, prompt builder, citation parser, extractors |
+| Backend integration | 94 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
+| Backend security | 81 test functions | The threat model, end to end through the API |
+| Frontend | 56 tests | Vitest and Testing Library |
+| Compose smoke (CI) | 11 steps | The full stack: sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
+
+With parametrisation the backend collects **319 tests**. Highlights:
+
+- **Demo scenario:** seeds both companies through the API and asserts on every recorded prompt. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of its seven tests fail.
+- **Filter equivalence:** an exhaustive test over every combination of tenants, users, roles, classifications, and grants proves the SQL read filter and the Python rule agree; Hypothesis property tests cover the policy and chunker invariants.
+- **Recording LLM:** tests assert that restricted text never appears in any prompt, rather than trusting a summary of what was sent.
+- **Fail-closed paths:** a database outage, an embedding failure, a model failure, and a deliberately wrong SQL filter each return an error and an audit record.
+
+CI ([workflow](.github/workflows/ci.yml)) runs ruff, mypy (strict), and pytest for the backend; ESLint, TypeScript, Vitest, and a production build for the frontend; and the full Compose stack with the offline LLM stand-in.
+
+## Configuration
+
+Set these in `.env` (see [`.env.example`](.env.example)); Compose passes them to the services:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `POSTGRES_PASSWORD`, `VEYL_OWNER_PASSWORD`, `VEYL_APP_PASSWORD` | placeholders | Database superuser (bootstrap only), migration owner, application role |
+| `AUDIT_HMAC_KEY` | placeholder | Key for the HMAC references that stand in for question text in the audit log (32+ characters) |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | Groq, `openai/gpt-oss-120b`, empty | Any OpenAI-compatible chat API |
+| `RETRIEVAL_MIN_SCORE` | `0.5` | Below this similarity nothing is sent to the model |
+| `MAX_UPLOAD_MB` | `10` | Upload limit, enforced while the body streams in |
+| `ENVIRONMENT` | `development` | `production` marks cookies `Secure` |
+| `LOG_LEVEL` | `info` | Log verbosity |
+| `VEYL_DEMO_PASSWORD` | none | Password for every demo account (seed only) |
+
+Further application settings have safe defaults and can be added to the `api` service's environment: `RETRIEVAL_TOP_K` (6), `RETRIEVAL_CACHE_TTL_SECONDS` (600), `SESSION_TTL_MINUTES` (720), `LOGIN_MAX_FAILURES` and `LOGIN_WINDOW_SECONDS` (5 per 900 s), `HISTORY_MAX_TURNS` (6), `LLM_TIMEOUT_SECONDS` (30), `LLM_MAX_TOKENS` (1024), `MAX_PDF_PAGES` (200), `EXTRACTION_TIMEOUT_SECONDS` (60).
 
 ## LLM providers
 
-Answers come from any OpenAI-compatible chat API, configured in `.env` (never committed). All of these are free without a card:
+All of these are free without a card:
 
 | Provider | `LLM_BASE_URL` | `LLM_MODEL` | Notes |
 |---|---|---|---|
 | Groq (default) | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` | Free key at console.groq.com |
 | Gemini (AI Studio) | `https://generativelanguage.googleapis.com/v1beta/openai/` | e.g. `gemini-2.5-flash` | Free tier may use data for product improvement |
-| Ollama (local) | `http://host.docker.internal:11434/v1` | any pulled model | Nothing leaves your machine; `LLM_API_KEY` can be empty |
+| Ollama (local) | `http://host.docker.internal:11434/v1` | any pulled model | Nothing leaves the machine; `LLM_API_KEY` may be empty |
 
-Only the model's answer text is used. If the provider fails, times out, or answers with a redirect (refused, so the API key never follows it to another host), the request fails with `503 llm_unavailable`.
+Only the model's answer text is used. The client refuses HTTP redirects so the API key never follows one to another host; a failure, timeout, or redirect returns `503 llm_unavailable`.
 
-## Running your own workspace
+## Operations
 
-Tenants are created by an operator with the database owner role, never through the API. The admin password comes from an environment variable, never an argument:
+**Create a workspace.** Tenants are created by an operator with the owner role, never through the API; the admin password comes from an environment variable, never an argument:
 
 ```bash
-docker compose run --rm -e VEYL_ADMIN_PASSWORD='choose-a-long-password' migrate \
-  python -m app.cli provision-tenant --slug yourco --name "Your Co" --admin-email you@yourco.test
+docker compose run --rm -e VEYL_ADMIN_PASSWORD=choose-a-long-password migrate python -m app.cli provision-tenant --slug yourco --name "Your Co" --admin-email you@yourco.test
 ```
 
-Sign in as that admin, add people on the People page, and upload documents. The [API reference](docs/api.md) shows the same steps with `curl`.
+Then sign in as that admin, add people on the People page, and upload documents. The [API reference](docs/api.md) shows every step with `curl`.
 
-> The database init script runs only when the volume is first created. If you change the database passwords in `.env` later, recreate the volume with `docker compose down -v`.
+**Reset:** `docker compose down -v` removes the containers, the database, and uploads. The database init script runs only when its volume is first created, so recreate the volume after changing database passwords.
+
+**A second copy** on the same machine would share the first one's Compose project (`name: veyl`) and data; add `-p veyl-copy` to every Compose command in that copy.
 
 ## Development
 
@@ -139,7 +342,7 @@ Sign in as that admin, add people on the People page, and upload documents. The 
 ```bash
 cd backend
 uv sync
-uv run pytest                             # integration and security tests need Docker running
+uv run pytest                                          # integration and security tests need Docker
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```
 
@@ -148,33 +351,81 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```bash
 cd frontend
 pnpm install
-pnpm dev                                  # http://localhost:3000, proxies /api/* to http://localhost:8000
+pnpm dev                                               # http://localhost:3000, proxies /api/* to :8000
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
-pnpm screenshots                          # against a running stack; see scripts/screenshots.mjs
+pnpm screenshots                                       # regenerates docs/screenshots from a running stack
 ```
 
-Stack: FastAPI, SQLAlchemy Core, Alembic, Postgres 16 with pgvector, fastembed; Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui, GSAP; Docker Compose and Caddy; GitHub Actions CI.
+| Layer | Technology |
+|---|---|
+| API | FastAPI, SQLAlchemy Core, Alembic, pydantic-settings, argon2id |
+| Data | PostgreSQL 16, pgvector (HNSW with iterative scans), row-level security |
+| Embeddings | fastembed with `BAAI/bge-small-en-v1.5`, local and offline |
+| Extraction | pypdf in an isolated child process |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, GSAP |
+| Delivery | Docker Compose, Caddy, GitHub Actions |
+| Testing | pytest, Hypothesis, testcontainers, Vitest, Testing Library, Playwright (screenshots) |
 
-## Repository layout
+## Project structure
 
-```
-backend/            FastAPI app (app/), Alembic migrations, tests (unit/, integration/, security/)
-frontend/           Next.js dashboard, Vitest tests, screenshot script
+```text
+backend/
+  app/
+    authz/          policy, roles, SQL read filter (the single source of permission rules)
+    auth/           sessions, CSRF, rate limits, password hashing
+    db/             schema, tenant transactions
+    documents/      upload validation, storage, ACL changes
+    ingestion/      extraction, chunking, ingestion pipeline (worker.py runs it)
+    retrieval/      embeddings, permission-filtered vector search, cache
+    llm/            OpenAI-compatible client, prompt builder, citation check
+    rag/            the query pipeline
+    conversations/  owner-only history with re-authorization
+    audit/          append-only audit log
+    demo/           two-company demo seed (stdlib HTTP client)
+  migrations/       Alembic, hand-written SQL
+  tests/            unit/, integration/, security/
+frontend/src/       app routes, components, typed API client, motion helpers
 docker/             Postgres role bootstrap, Caddy config, LLM stand-in, CI smoke scripts
-docs/               Architecture, threat model, API, demo, spec, plans, decisions, dev log
-.github/workflows/  CI: backend, frontend, full-stack smoke test with the seeded demo
+docs/               architecture, threat model, API, demo, spec, plans, decisions, dev log
 ```
+
+## Limitations
+
+Stated rather than hidden; the full list is in the [threat model](docs/threat-model.md#known-limitations):
+
+- Row-level security covers the tenant boundary; role, grant, and classification checks live in the SQL filter and the Python re-check.
+- The LLM provider sees the excerpts the asker may read. Use Ollama to keep everything local.
+- Prompt injection can distort answers built from content the user may read; it cannot widen access.
+- Timing and "nothing found" side channels are not hardened.
+- The schema owner or a database superuser could disable the audit trigger.
+- Rate limiting is in-process and assumes one API replica; deployment is single-node.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [Architecture](docs/architecture.md) | Components, trust boundaries, where each check lives, pipelines |
+| [Threat model](docs/threat-model.md) | Assets, actors, seventeen threats with mitigations and tests, limitations, open items |
+| [API reference](docs/api.md) | Every endpoint with permissions and `curl` examples |
+| [Demo walkthrough](docs/demo.md) | Seeding and the step-by-step scenario |
+| [Design spec](docs/superpowers/specs/2026-10-15-veyl-design.md) | The original design: authorization model, schema, pipelines |
+| [Decision log](docs/decisions.md) | Fifty-two recorded decisions with alternatives and reasons |
+| [Dev log](docs/devlog.md) | Chronological record of the work, including every review finding |
 
 ## Project status
 
-| Phase | Scope | Status |
-|---|---|---|
-| 1 | Architecture and threat model ([spec](docs/superpowers/specs/2026-10-15-veyl-design.md)) | Done |
-| 0 | Repo setup: tooling, Docker Compose, CI ([plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md)) | Done |
-| 2 | Schema, RLS, auth, RBAC ([plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md)) | Done |
-| 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
-| 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
-| 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | Done |
+All six planned phases are complete; each ended with an independent whole-phase review whose findings are recorded in the dev log.
 
-Known limitations are listed in the [threat model](docs/threat-model.md#known-limitations).
+| Phase | Scope | Plan |
+|---|---|---|
+| 1 | Architecture and threat model | [spec](docs/superpowers/specs/2026-10-15-veyl-design.md) |
+| 0 | Repository, tooling, Compose, CI | [plan](docs/superpowers/plans/2026-10-15-phase-0-repo-setup.md) |
+| 2 | Schema, row-level security, authentication, RBAC | [plan](docs/superpowers/plans/2026-10-16-phase-2-schema-auth-rbac.md) |
+| 3 | Ingestion, embeddings, permission-filtered retrieval | [plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md) |
+| 4 | LLM answers, citations, conversations, audit log | [plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md) |
+| 5 | Dashboard | [plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md) |
+| 6 | Demo, security walkthrough, documentation | [plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md) |
+
+## License
+
+[MIT](LICENSE)

@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — README rewrite and MIT licence
+
+**Done** — README restructured for a technical reader: centred header with stack badges and quick links; the admin and member answers side by side; a "Why Veyl" comparison with typical RAG pipelines; security guarantees; quickstart with collapsible sections for the offline stand-in and services; the seven-step demo as a table; the screenshot gallery; architecture, query sequence, and data model diagrams (Mermaid); a defence-in-depth table; the read rule written out; test suites with counts; configuration reference (split into what `.env` reaches through Compose and further application settings); LLM providers; operations; development and tech stack; project structure; limitations; documentation index; phase status. Every relative link and anchor checked. Added the MIT licence (user's choice).
+**Next** — plan the follow-up work with the user (open review items, hosting a public demo, audit log hardening, streaming answers, more document types).
+
 ## 2026-10-18 — Phase 6 complete: demo, security walkthrough, docs
 
 **Summary** — a fresh clone now reaches a working two-company demo with four commands. `seed-demo` creates Acme and Globex with the owner role and everything else through the public API; the spec's walkthrough runs as an end-to-end security test and as a CI smoke step; the dashboard's deferred minors are fixed; GSAP motion is limited to content that arrives after load and is off under reduced motion; architecture, threat model (T1 to T17 mapped to real tests), API, and demo docs; the README leads with the guarantee. A live run with the real model found and fixed a citation bug the stand-in could not reveal.
