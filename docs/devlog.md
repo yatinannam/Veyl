@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6, Task 1: demo seed
+
+**Done** — `python -m app.cli seed-demo --api-url ...` (Compose service `seed`, profile `demo`): creates Acme and Globex with the owner role, then adds people, uploads the six synthetic documents, and sets permissions **through the public API** as each admin, using a stdlib client (cookies, CSRF header, multipart); waits until every document is processed. Refuses to run twice (exit 1, nothing changed); the password comes only from `VEYL_DEMO_PASSWORD`. The same seed code runs in tests against `TestClient` (session fixture `demo_world`). Checked on a scratch stack: seeded in seconds, second run refused, missing password exit 2. 311 backend tests.
+**Next** — the demo walkthrough as a security test (Task 2).
+
 ## 2026-10-18 — Phase 6 plan written
 
 **Done** — [Phase 6 plan](superpowers/plans/2026-10-18-phase-6-demo-docs.md): 7 tasks. A `seed-demo` command creates Acme and Globex with the owner role, then adds users, documents, and permissions through the public API as each admin (the same code seeds the tests); the spec's demo walkthrough becomes an end-to-end security test and a CI smoke step; Phase 5 dashboard minors; three GSAP motion moments with reduced motion respected (Lenis considered and not used for app screens); architecture, threat model, API, and demo docs; a fresh-clone check of the README.

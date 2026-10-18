@@ -31,6 +31,23 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Demo data (spec section 14). Not started by `up`; run it once:
+  #   docker compose run --rm -e VEYL_DEMO_PASSWORD=choose-a-demo-password seed
+  # Creates the tenants with the owner role, then everything else through the API.
+  seed:
+    build: ./backend
+    profiles: ["demo"]
+    command: ["python", "-m", "app.cli", "seed-demo", "--api-url", "http://api:8000"]
+    environment:
+      MIGRATIONS_DATABASE_URL: postgresql+psycopg://veyl_owner:${VEYL_OWNER_PASSWORD}@db:5432/veyl
+      VEYL_DEMO_PASSWORD: ${VEYL_DEMO_PASSWORD:-}
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    restart: "no"
+
   api:
     build: ./backend
     command:

@@ -3,6 +3,7 @@ import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from alembic import command
@@ -10,6 +11,9 @@ from alembic.config import Config
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
 from testcontainers.community.postgres import PostgresContainer
+
+if TYPE_CHECKING:
+    from tests.demo_support import DemoWorld
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 INIT_DIR = BACKEND_DIR.parent / "docker" / "postgres" / "init"
@@ -91,3 +95,18 @@ def app_engine(database_urls: DatabaseUrls) -> Iterator[Engine]:
     engine = create_engine(database_urls.app)
     yield engine
     engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def demo_world(
+    owner_engine: Engine,
+    app_engine: Engine,
+    database_urls: DatabaseUrls,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "DemoWorld":
+    """The spec section 14 demo, seeded once per session through the real API."""
+    from tests.demo_support import seed_through_api
+
+    return seed_through_api(
+        owner_engine, app_engine, database_urls.app, tmp_path_factory.mktemp("demo-uploads")
+    )

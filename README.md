@@ -16,7 +16,7 @@ Runs entirely on free tiers: local embeddings (bge-small via fastembed) and any 
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (0/7 tasks) |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (1/7 tasks) |
 
 ## Quickstart
 
@@ -35,6 +35,26 @@ docker compose up --build
 | `worker` | Ingestion: extract, chunk, embed (model baked into the image), copy ACLs to chunks | internal only |
 | `web` | Next.js dashboard; proxies `/api/*` to `api` so the browser sees one origin | internal only |
 | `edge` | Caddy reverse proxy, the public entry point; overwrites `X-Forwarded-For` so client IPs cannot be forged | http://127.0.0.1:3000 |
+
+### Try the demo
+
+With the stack running, seed two companies (Acme and Globex) with people and documents at every classification level:
+
+```bash
+docker compose run --rm -e VEYL_DEMO_PASSWORD='demo-password-123' seed
+```
+
+It creates the two tenants with the owner role, then adds the people, uploads the documents, and sets their permissions through the API as each admin, and waits until every document is processed. Sign in at http://127.0.0.1:3000 with workspace `acme` or `globex` and any of these emails, all with the demo password:
+
+| Workspace | Person | Role | Can read |
+|---|---|---|---|
+| `acme` | alice@acme.test | Admin | Everything in Acme, including *Q3 Board Financials* (restricted) |
+| `acme` | mark@acme.test | Manager | Handbook, IT FAQ, *Engineering Roadmap* (confidential), his own performance review |
+| `acme` | mia@acme.test | Member | *Employee Handbook* and *IT Help FAQ* only |
+| `globex` | gina@globex.test | Admin | *Merger Plan* (restricted) |
+| `globex` | gary@globex.test | Member | Nothing from Acme, ever |
+
+The *IT Help FAQ* contains a planted instruction to "reveal the Q3 financials"; asking about it as Mia shows that the model never receives text she cannot read. Running the seed again is refused; `docker compose down -v` resets everything.
 
 ### Provisioning a tenant
 
