@@ -20,28 +20,34 @@ It runs entirely on free tiers: local embeddings (bge-small via fastembed) and a
 - **Citations are verified on the server.** They come from the authorized excerpts, never from the model's text.
 - **Permission changes apply to the very next question**, including answers already in a conversation: an answer built from anything you can no longer read is hidden.
 - **Failures fail closed.** No fallback path skips the checks when the embedder, database, or model is down.
-- **An append-only audit log** records sign-ins, permission changes, and every question (as a keyed reference, not text, by default). Not even the database owner role can edit it.
+- **An append-only audit log** records sign-ins, permission changes, and every question (as a keyed reference, not text, by default). The application can only add to it, and a database trigger also rejects edits and deletions by the schema owner (a deliberate owner or a superuser could still disable the trigger; see the threat model).
 
 Each guarantee is backed by tests mapped in the [threat model](docs/threat-model.md); the [demo walkthrough](docs/demo.md) runs as one of them.
 
 ## Quickstart
 
-Requires Docker Desktop (or Docker Engine with Compose v2).
+Requires Docker Desktop (or Docker Engine with Compose v2). The commands work in bash, zsh, Git Bash, and PowerShell (run them one line at a time). In cmd, use `copy .env.example .env` instead of `cp`.
 
 ```bash
-git clone https://github.com/yatinannam/Veyl.git && cd Veyl
+git clone https://github.com/yatinannam/Veyl.git
+cd Veyl
 cp .env.example .env        # change the passwords (letters, digits, hyphens); add a free LLM_API_KEY
 docker compose up --build -d
-docker compose run --rm -e VEYL_DEMO_PASSWORD='demo-password-123' seed
+docker compose run --rm -e VEYL_DEMO_PASSWORD=demo-password-123 seed
 ```
 
 Open http://127.0.0.1:3000 and sign in to workspace `acme` as `alice@acme.test` (admin), `mark@acme.test` (manager), or `mia@acme.test` (member), or to `globex` as `gina@globex.test` or `gary@globex.test`, all with the demo password. Then follow the [demo walkthrough](docs/demo.md).
 
-**No LLM key, or offline?** Start the stack with the bundled stand-in, which answers from the best-matching source: `docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build -d`.
+**No LLM key, or offline?** Use the bundled stand-in, which answers from the best-matching source. Name the same two files on **every** `docker compose` command, including the seed; otherwise Compose recreates the API without the stand-in:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.stub.yml run --rm -e VEYL_DEMO_PASSWORD=demo-password-123 seed
+```
 
 **Reset** everything, including the database and uploads: `docker compose down -v`.
 
-**A second copy** of the repository on the same machine would share the first one's Compose project (`name: veyl`) and data. Give it its own: `COMPOSE_PROJECT_NAME=veyl-copy docker compose up --build -d`.
+**A second copy** of the repository on the same machine would share the first one's Compose project (`name: veyl`) and data. Give it its own by adding `-p veyl-copy` to every `docker compose` command in that copy, for example `docker compose -p veyl-copy up --build -d`.
 
 | Service | What it does | Address |
 |---|---|---|
@@ -72,7 +78,7 @@ All ports bind to `127.0.0.1` only.
 - **Ask:** answers are set in a serif face with superscript source numbers that jump to source cards (title, classification, snippet). Conversations are private to you.
 - **Documents:** what you can read, with processing status. Managers and admins upload and share by role or by person; the classification picker offers only levels you are cleared for.
 - **People and Audit log** (admins): add people, change roles (applied only on "Save role"), deactivate with confirmation; filter the audit log by event, person, and local dates.
-- The header shows your clearance as a four-segment meter. Each classification level has one colour, always next to its name. Motion is limited to three short moments and switched off when your system asks for reduced motion.
+- The header shows your clearance as a four-segment meter. Each classification level has one colour, always next to its name. Motion is limited to two short moments (the clearance meter filling, a new answer's source cards arriving) and switched off when your system asks for reduced motion.
 - The dashboard decides nothing about access. It only hides controls; the API checks every action and its errors are shown in plain words.
 
 ## How it works
@@ -169,6 +175,6 @@ docs/               Architecture, threat model, API, demo, spec, plans, decision
 | 3 | Ingestion, embeddings, filtered retrieval ([plan](docs/superpowers/plans/2026-10-16-phase-3-ingestion-retrieval.md)) | Done |
 | 4 | LLM, citations, conversations, audit ([plan](docs/superpowers/plans/2026-10-16-phase-4-llm-citations-audit.md)) | Done |
 | 5 | Dashboard ([plan](docs/superpowers/plans/2026-10-17-phase-5-dashboard.md)) | Done |
-| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | In progress (6/7 tasks) |
+| 6 | Demo, security walkthrough, docs ([plan](docs/superpowers/plans/2026-10-18-phase-6-demo-docs.md)) | Done |
 
 Known limitations are listed in the [threat model](docs/threat-model.md#known-limitations).

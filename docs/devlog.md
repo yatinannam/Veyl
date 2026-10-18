@@ -2,6 +2,27 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-18 — Phase 6 complete: demo, security walkthrough, docs
+
+**Summary** — a fresh clone now reaches a working two-company demo with four commands. `seed-demo` creates Acme and Globex with the owner role and everything else through the public API; the spec's walkthrough runs as an end-to-end security test and as a CI smoke step; the dashboard's deferred minors are fixed; GSAP motion is limited to content that arrives after load and is off under reduced motion; architecture, threat model (T1 to T17 mapped to real tests), API, and demo docs; the README leads with the guarantee. A live run with the real model found and fixed a citation bug the stand-in could not reveal.
+
+**Review** — independent whole-phase review: no Critical, 2 Important, 5 Minor; it re-verified the demo live with eight questions, every threat-model reference, and the API docs against the code.
+
+**Fixed**
+- *(Important) The no-key instructions broke every question.* Starting with the stand-in overlay and then seeding with a plain `docker compose run` recreated the API without the overlay (pointing at Groq with no key). The README and demo now name both files on every command; the "second copy" tip uses `-p` on every command instead of bash-only syntax.
+- *(Important) The audit-log claim overstated.* "Not even the database owner can edit it" was false: the owner can disable its own table's trigger. README, threat model (T8 and limitation 5), and architecture now say exactly what holds, and T8 cites the right test (`test_audit_schema.py::test_even_the_owner_cannot_rewrite_the_audit_log`).
+- *(Re-graded to Important) The sign-in levels flashed.* They are server-rendered, so animating them on hydration hid visible content and faded it back. They are no longer animated (D-052). Test RED to GREEN.
+- *(Re-graded to Important) The quickstart did not work in Windows PowerShell 5.1 or cmd* (`&&`, bash-only env syntax, quotes kept by cmd). Commands are now one per line, the demo password needs no quotes, and cmd's `copy` is noted.
+
+**Deferred (Minor)**
+1. A seed that fails after creating the tenants reports only the raw error, and a rerun then says "already seeded"; it should say the demo is incomplete and to run `docker compose down -v`. A `--wait` timeout is reported as an error although the data is complete, and only the first failed document is named.
+2. The citation marker pattern lets a dagger reference run across newlines (`[S1† ... ]` can swallow answer text) and is quadratic on pathological input (bounded by the model's token limit); limit it to `†[^close
+]{0,40}`.
+3. `test_admin_gets_cited_answer_from_board_financials` passes vacuously when no restricted citation is present; assert the list is non-empty.
+
+**Tests** — 319 backend, 56 frontend. CI green on every Phase 6 commit.
+**Next** — the project's planned phases are complete. Open items are listed in [threat-model.md](threat-model.md#open-review-items).
+
 ## 2026-10-18 — Phase 6, Task 7: fresh clone and live walkthrough found a citation bug
 
 **Fresh clone** — cloned from GitHub into a folder of another name and followed the README: `cp .env.example .env`, new passwords, LLM key, `docker compose up --build -d`, `docker compose run --rm seed`. It built, migrated, seeded, and processed every document. Note: `docker-compose.yml` pins `name: veyl`, so a second checkout shares the first one's Compose project (and its volumes); the check ran with `COMPOSE_PROJECT_NAME=veyl-fresh`, and the README now says how to run a second copy.

@@ -6,8 +6,15 @@ Two companies, five people, six synthetic documents, and a walkthrough that show
 
 ```bash
 cp .env.example .env              # change the passwords; add LLM_API_KEY for real answers
-docker compose up --build -d      # or add -f docker-compose.yml -f docker-compose.stub.yml for the offline stand-in
-docker compose run --rm -e VEYL_DEMO_PASSWORD='demo-password-123' seed
+docker compose up --build -d
+docker compose run --rm -e VEYL_DEMO_PASSWORD=demo-password-123 seed
+```
+
+Without an LLM key, use the offline stand-in and name both files on every command (otherwise the seed's `run` recreates the API without it):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.stub.yml run --rm -e VEYL_DEMO_PASSWORD=demo-password-123 seed
 ```
 
 The seed creates the two tenants with the database owner role (the API has no way to create tenants), then signs in as each admin and adds the people, uploads the documents, and sets their permissions through the public API. It waits until every document is processed and prints the accounts. Running it again is refused; `docker compose down -v` deletes everything so you can start over.

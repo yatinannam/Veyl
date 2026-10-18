@@ -98,11 +98,11 @@ Every failure (embedding, database, model) is an error response with an audit re
 
 ## Data model (summary)
 
-`tenants`, `users`, `sessions`, `documents` (classification, allowed roles, allowed users, status, `acl_version`), `document_chunks` (content, embedding, a copy of the ACL, `acl_version`), `ingestion_jobs`, `conversations`, `messages` (cited and source chunk ids), `retrieval_cache` (chunk ids only), `audit_events` (append-only; a trigger blocks UPDATE, DELETE, and TRUNCATE even for the owner). Every table carries `tenant_id` and an RLS policy. The ER diagram is in spec section 5.2.
+`tenants`, `users`, `sessions`, `documents` (classification, allowed roles, allowed users, status, `acl_version`), `document_chunks` (content, embedding, a copy of the ACL, `acl_version`), `ingestion_jobs`, `conversations`, `messages` (cited and source chunk ids), `retrieval_cache` (chunk ids only), `audit_events` (append-only for the app role; a trigger rejects UPDATE, DELETE, and TRUNCATE by any role, though the schema owner could disable it). Every table carries `tenant_id` and an RLS policy. The ER diagram is in spec section 5.2.
 
 ## Frontend
 
-Client components call the API through the same-origin `/api/v1` rewrite with a small typed client that echoes the CSRF cookie. `proxy.ts` sends requests without a session cookie to `/login`; any 401 after that sends the user to sign in and back. Classification levels have one colour each, always next to their name. Motion (GSAP) is limited to three moments and disabled under reduced motion.
+Client components call the API through the same-origin `/api/v1` rewrite with a small typed client that echoes the CSRF cookie. `proxy.ts` sends requests without a session cookie to `/login`; any 401 after that sends the user to sign in and back. Classification levels have one colour each, always next to their name. Motion (GSAP) is limited to two moments (the clearance meter, a new answer's source cards), both for content that arrives after the page loads, and is disabled under reduced motion.
 
 ## Where to look
 

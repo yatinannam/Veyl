@@ -57,3 +57,13 @@ describe("useReveal", () => {
     expect(getByText("One").style.opacity).toBe("");
   });
 });
+
+describe("server-rendered content", () => {
+  it("does not hide and re-reveal the sign-in levels that are already on screen", async () => {
+    stubMotionPreference(false);
+    const from = vi.spyOn(gsap, "from");
+    const { ClassificationLevels } = await import("@/components/classification-levels");
+    render(<ClassificationLevels />);
+    expect(from).not.toHaveBeenCalled();
+  });
+});
