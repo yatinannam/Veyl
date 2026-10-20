@@ -2,6 +2,21 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-20 — Hardening, Batch E: platform
+
+**Done** (tests RED to GREEN for the code changes)
+- *P4-4:* with `ENVIRONMENT=production`, the example `AUDIT_HMAC_KEY` from `.env.example` is refused at start-up (development still accepts it).
+- *P0-1:* `/readyz` runs under a 2-second statement timeout, so a database that accepts connections but stalls yields `503` instead of hanging the probe.
+- *P0-2:* `LOG_LEVEL` now sets the API's `app` logger (it only applied to the worker).
+- *P0-6:* the Postgres init script revokes PUBLIC's connect right on the `postgres` and `template1` databases; the app role is refused there (applies to new database volumes).
+- *P0-4:* `.env` and `.env.*` are excluded from both Docker build contexts.
+- *P0-5:* every Compose service except Postgres drops all capabilities and sets `no-new-privileges` (the edge keeps only `no-new-privileges`: Caddy's binary carries a file capability and would not execute with every capability dropped); `api` and `worker` run with read-only root filesystems and a tmpfs `/tmp`.
+- *P0-7:* CI actions are pinned to the commit their current major tag points to, and each job has a timeout.
+- *P0-8:* the Compose smoke job checks that neither `api` nor `worker` can see owner credentials.
+
+**Verified** on a fresh scratch stack with the hardened settings: every service healthy, the demo seeded through the read-only worker, the demo permission checks, sign-in pages, readiness, and the forged-IP rate-limit probe all passed; the scratch stack was then removed. GitHub private vulnerability reporting is now enabled (user approved), so `SECURITY.md`'s reporting link works. 350 backend tests.
+**Next** — Batch F (dashboard and demo).
+
 ## 2026-10-18 — Hardening, Batch D: ingestion
 
 **Done**

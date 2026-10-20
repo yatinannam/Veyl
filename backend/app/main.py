@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -50,6 +51,7 @@ def create_app(
     llm: LLMClient | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
+    logging.getLogger("app").setLevel(settings.log_level.upper())
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

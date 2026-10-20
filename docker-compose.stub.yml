@@ -2,6 +2,8 @@
 #   docker compose -f docker-compose.yml -f docker-compose.stub.yml up --build
 services:
   llm-stub:
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     image: python:3.11-slim
     command: ["python", "/stub/stub.py"]
     user: "10001:10001"

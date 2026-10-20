@@ -2,6 +2,7 @@ name: veyl
 
 services:
   db:
+    security_opt: ["no-new-privileges:true"]
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: postgres
@@ -22,6 +23,8 @@ services:
       retries: 30
 
   migrate:
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     build: ./backend
     command: ["alembic", "upgrade", "head"]
     environment:
@@ -35,6 +38,8 @@ services:
   #   docker compose run --rm -e VEYL_DEMO_PASSWORD=choose-a-demo-password seed
   # Creates the tenants with the owner role, then everything else through the API.
   seed:
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     build: ./backend
     profiles: ["demo"]
     command: ["python", "-m", "app.cli", "seed-demo", "--api-url", "http://api:8000"]
@@ -49,6 +54,10 @@ services:
     restart: "no"
 
   api:
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
     build: ./backend
     command:
       - uvicorn
@@ -90,6 +99,10 @@ services:
       retries: 20
 
   worker:
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
     build: ./backend
     command: ["python", "-m", "app.worker"]
     environment:
@@ -105,6 +118,8 @@ services:
     restart: unless-stopped
 
   web:
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     build:
       context: ./frontend
       args:
@@ -115,6 +130,7 @@ services:
     # Not published: browsers reach the web app only through `edge`.
 
   edge:
+    security_opt: ["no-new-privileges:true"]
     image: caddy:2-alpine
     user: "10001:10001"
     environment:

@@ -28,6 +28,10 @@ GRANT CONNECT, TEMPORARY ON DATABASE :"dbname" TO veyl_owner;
 -- inside SECURITY DEFINER functions.
 GRANT CONNECT ON DATABASE :"dbname" TO veyl_app;
 
+-- Nobody but the superuser needs the maintenance databases.
+REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+REVOKE CONNECT ON DATABASE template1 FROM PUBLIC;
+
 ALTER SCHEMA public OWNER TO veyl_owner;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO veyl_app;

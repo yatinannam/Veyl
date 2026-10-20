@@ -126,7 +126,7 @@ docker compose -f docker-compose.yml -f docker-compose.stub.yml run --rm -e VEYL
 | `migrate` | One-shot Alembic migrations as `veyl_owner` | |
 | `seed` | Demo only (profile `demo`): creates Acme and Globex, everything else through the API | |
 
-All ports bind to `127.0.0.1`. Reset everything, including the database and uploads, with `docker compose down -v`.
+All ports bind to `127.0.0.1`. Every service except the database drops all Linux capabilities and runs with `no-new-privileges`; the API and worker also run on read-only root filesystems, and neither ever holds the database owner's credentials (checked in CI). Reset everything, including the database and uploads, with `docker compose down -v`.
 
 </details>
 
@@ -298,12 +298,12 @@ Fifty-two decisions are recorded with their alternatives in the [decision log](d
 | Suite | Size | Runs against |
 |---|---|---|
 | Backend unit | 93 test functions | Policy, chunker, prompt builder, citation parser, extractors |
-| Backend integration | 97 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
+| Backend integration | 101 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
 | Backend security | 95 test functions | The threat model, end to end through the API |
 | Frontend | 56 tests | Vitest and Testing Library |
-| Compose smoke (CI) | 11 steps | The full stack: sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
+| Compose smoke (CI) | 12 steps | The full stack: owner credentials absent from the API and worker, sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
 
-With parametrisation the backend collects **345 tests**. Highlights:
+With parametrisation the backend collects **350 tests**. Highlights:
 
 - **Demo scenario:** seeds both companies through the API and asserts on every recorded prompt. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of its seven tests fail.
 - **Filter equivalence:** an exhaustive test over every combination of tenants, users, roles, classifications, and grants proves the SQL read filter and the Python rule agree; Hypothesis property tests cover the policy and chunker invariants.

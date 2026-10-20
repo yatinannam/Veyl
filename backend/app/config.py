@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -46,6 +46,16 @@ class Settings(BaseSettings):
         if len(value.get_secret_value()) < 32:
             raise ValueError("AUDIT_HMAC_KEY must be at least 32 characters")
         return value
+
+    @model_validator(mode="after")
+    def _no_example_secrets_in_production(self) -> "Settings":
+        # The value shipped in .env.example is public; an audit reference keyed with it
+        # could be reversed by anyone who guesses the question.
+        if self.environment == "production" and self.audit_hmac_key.get_secret_value().startswith(
+            "change-me"
+        ):
+            raise ValueError("AUDIT_HMAC_KEY is the example placeholder; set a random key")
+        return self
 
     @property
     def cookie_secure(self) -> bool:

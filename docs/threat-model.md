@@ -63,7 +63,5 @@ Stated in spec section 11 and repeated here:
 
 Remaining minor findings from the phase reviews, being closed under the [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md) (fixed items are recorded in the [dev log](devlog.md)):
 
-- The `.env.example` `AUDIT_HMAC_KEY` placeholder is accepted; it should be rejected in production.
 - Concurrent permission edits: the later save wins without a warning.
-- Platform: `/readyz` has no statement timeout; `LOG_LEVEL` is not applied to the API; Compose services keep default capabilities.
 - A seed that fails after creating the tenants should say the demo is incomplete; one demo test can pass vacuously.
