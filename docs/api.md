@@ -99,7 +99,7 @@ curl -b jar.txt -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/j
 | `POST /documents` | manager, admin | Multipart: `file`, `title`, `classification`, repeated `allowed_roles`, repeated `allowed_user_ids`. PDF, TXT, or Markdown. 202 with status `pending`. Managers cannot classify above confidential. |
 | `GET /documents` | signed in | Documents you can read (and ones you manage). |
 | `GET /documents/{id}` | readers | Metadata; the access list is included for the uploader and admins (`can_manage`). |
-| `PUT /documents/{id}/permissions` | uploader, admin | `{classification, allowed_roles, allowed_user_ids}`. Applies to the very next question anyone asks. |
+| `PUT /documents/{id}/permissions` | uploader, admin | `{classification, allowed_roles, allowed_user_ids, expected_acl_version?}`. Applies to the very next question anyone asks. Send the `acl_version` you loaded as `expected_acl_version` to get `409 conflict` instead of overwriting someone else's change. |
 | `DELETE /documents/{id}` | uploader, admin | Removes the document and its chunks. 204. |
 
 ```bash
@@ -124,7 +124,8 @@ curl -b jar.txt -H "X-CSRF-Token: $CSRF" \
   "updated_at": "2026-10-18T05:26:09.240474Z",
   "can_manage": true,
   "allowed_roles": ["admin", "manager", "member"],
-  "allowed_user_ids": ["78f60024-..."]
+  "allowed_user_ids": ["78f60024-..."],
+  "acl_version": 1
 }
 ```
 

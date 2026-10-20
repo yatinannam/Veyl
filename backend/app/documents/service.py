@@ -13,7 +13,7 @@ from app.db.schema import document_chunks, documents, ingestion_jobs, users
 from app.db.tenancy import bump_policy_version, tenant_transaction
 from app.documents.storage import LocalStorage
 from app.documents.validation import ValidatedUpload
-from app.errors import AppError, NotFound
+from app.errors import AppError, Conflict, NotFound
 
 
 class UnknownUsers(AppError):
@@ -37,6 +37,7 @@ class DocumentRecord:
     uploaded_by: UUID
     created_at: datetime
     updated_at: datetime
+    acl_version: int
 
 
 _COLUMNS = (
@@ -53,6 +54,7 @@ _COLUMNS = (
     documents.c.uploaded_by,
     documents.c.created_at,
     documents.c.updated_at,
+    documents.c.acl_version,
 )
 
 
@@ -71,6 +73,7 @@ def _record(row: Any) -> DocumentRecord:
         uploaded_by=row.uploaded_by,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        acl_version=row.acl_version,
     )
 
 
@@ -192,11 +195,17 @@ def update_permissions(
     classification: Classification,
     allowed_roles: Iterable[Role],
     allowed_user_ids: Iterable[UUID],
+    expected_acl_version: int | None = None,
 ) -> DocumentRecord:
     """Spec section 5.4: document ACL, every chunk's ACL copy, acl_version, and the tenant
-    policy_version change in one transaction."""
+    policy_version change in one transaction. With `expected_acl_version`, the change is
+    refused if someone else changed the permissions since the caller loaded them."""
     with tenant_transaction(engine, ctx.tenant_id) as conn:
         current = _readable_row(conn, ctx, document_id, lock=True)
+        if expected_acl_version is not None and current.acl_version != expected_acl_version:
+            raise Conflict(
+                "Someone else changed these permissions. Reload to see the latest, then try again."
+            )
         authorize(
             ctx,
             Action.DOCUMENT_MANAGE,
@@ -215,7 +224,7 @@ def update_permissions(
                 acl_version=documents.c.acl_version + 1,
                 updated_at=func.now(),
             )
-            .returning(*_COLUMNS, documents.c.acl_version)
+            .returning(*_COLUMNS)
         ).one()
         conn.execute(
             update(document_chunks)

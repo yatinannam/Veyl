@@ -242,3 +242,33 @@ def test_delete_hides_document_removes_chunks_and_file(
     assert remaining == 0
     assert not (tmp_path / str(seeded.tenant_id) / document_id).exists()
     assert _policy_version(owner_engine, seeded.tenant_id) == before + 1
+
+
+def test_a_permission_edit_based_on_a_stale_version_is_refused(
+    owner_engine: Engine, database_urls: DatabaseUrls, seeded: SeededTenant
+) -> None:
+    document_id = create_document(
+        owner_engine, seeded.tenant_id, seeded.admin_id, allowed_roles=[Role.MEMBER]
+    )
+    url = f"{API}/documents/{document_id}/permissions"
+    with client_for(database_urls.app) as client:
+        login(client, seeded.slug, seeded.admin_email)
+        loaded = client.get(f"{API}/documents/{document_id}").json()["acl_version"]
+        body = {"classification": "internal", "allowed_roles": ["manager"]}
+        first = client.put(url, json={**body, "expected_acl_version": loaded}, headers=csrf(client))
+        # A second editor who loaded the same version saves afterwards.
+        second = client.put(
+            url,
+            json={
+                "classification": "public",
+                "allowed_roles": ["member"],
+                "expected_acl_version": loaded,
+            },
+            headers=csrf(client),
+        )
+        # Without a version the change still applies (older clients, scripts).
+        unversioned = client.put(url, json=body, headers=csrf(client))
+    assert first.status_code == 200 and first.json()["acl_version"] == loaded + 1
+    assert (second.status_code, second.json()["error"]["code"]) == (409, "conflict")
+    assert "changed" in second.json()["error"]["message"]
+    assert unversioned.status_code == 200

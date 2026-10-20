@@ -8,7 +8,13 @@ from collections.abc import Sequence
 from sqlalchemy import Engine, create_engine
 
 from app.demo.http import DemoApiError, UrllibTransport
-from app.demo.seed import AlreadySeeded, DemoNotReady, seed_demo, wait_until_ready
+from app.demo.seed import (
+    AlreadySeeded,
+    DemoNotReady,
+    DemoStillProcessing,
+    seed_demo,
+    wait_until_ready,
+)
 from app.provisioning import provision_tenant
 
 
@@ -32,10 +38,14 @@ def _seed_demo(engine: Engine, args: argparse.Namespace, password: str) -> int:
     def new_transport() -> UrllibTransport:
         return UrllibTransport(args.api_url)
 
+    still_processing: str | None = None
     try:
         summary = seed_demo(engine, new_transport, password)
         print("Created the demo; waiting for documents to be processed...")
-        wait_until_ready(new_transport, password, timeout=args.wait)
+        try:
+            wait_until_ready(new_transport, password, timeout=args.wait)
+        except DemoStillProcessing as exc:
+            still_processing = str(exc)
     except AlreadySeeded as exc:
         print(
             f"Demo already seeded ({exc}). Reset with `docker compose down -v` to start over.",
@@ -44,7 +54,17 @@ def _seed_demo(engine: Engine, args: argparse.Namespace, password: str) -> int:
         return 1
     except (DemoApiError, DemoNotReady, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
+        print(
+            "The demo may be incomplete. Reset with `docker compose down -v`, start the stack "
+            "again, and rerun the seed.",
+            file=sys.stderr,
+        )
         return 1
+    if still_processing:
+        print(
+            f"Everything is created; the worker is {still_processing}. "
+            "Those documents become searchable when it finishes."
+        )
     print(f"Demo ready: {', '.join(summary.tenants)}. Sign in as any of:")
     for email in summary.users:
         print(f"  {email}")

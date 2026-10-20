@@ -33,6 +33,8 @@ class DocumentOut(BaseModel):
     can_manage: bool
     allowed_roles: list[Role] | None
     allowed_user_ids: list[UUID] | None
+    # Send it back as expected_acl_version to detect concurrent edits.
+    acl_version: int
 
 
 class PermissionsUpdate(BaseModel):
@@ -41,6 +43,7 @@ class PermissionsUpdate(BaseModel):
     classification: Classification
     allowed_roles: list[Role] = Field(default_factory=list, max_length=3)
     allowed_user_ids: list[UUID] = Field(default_factory=list, max_length=MAX_SHARED_USERS)
+    expected_acl_version: int | None = None
 
 
 def _storage(request: Request) -> LocalStorage:
@@ -64,6 +67,7 @@ def _out(ctx: AuthContext, record: service.DocumentRecord) -> DocumentOut:
         can_manage=manage,
         allowed_roles=record.allowed_roles if manage else None,
         allowed_user_ids=record.allowed_user_ids if manage else None,
+        acl_version=record.acl_version,
     )
 
 
@@ -119,6 +123,7 @@ def update_permissions(
         classification=body.classification,
         allowed_roles=body.allowed_roles,
         allowed_user_ids=body.allowed_user_ids,
+        expected_acl_version=body.expected_acl_version,
     )
     return _out(ctx, record)
 

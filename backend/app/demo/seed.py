@@ -19,7 +19,11 @@ class AlreadySeeded(Exception):
 
 
 class DemoNotReady(Exception):
-    pass
+    """A demo document failed to process."""
+
+
+class DemoStillProcessing(DemoNotReady):
+    """Everything was created; the worker has not finished every document yet."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,16 +101,19 @@ def wait_until_ready(
     deadline = time.monotonic() + timeout
     while True:
         pending: list[str] = []
+        failed: list[str] = []
         for tenant, session in sessions:
             status = {d["title"]: (d["status"], d["error"]) for d in session.get("/documents")}
             for document in tenant.documents:
                 state, error = status.get(document.title, ("missing", None))
                 if state == "failed":
-                    raise DemoNotReady(f"{document.title} failed to process: {error}")
-                if state != "ready":
+                    failed.append(f"{document.title} ({error})")
+                elif state != "ready":
                     pending.append(document.title)
+        if failed:
+            raise DemoNotReady("failed to process: " + "; ".join(failed))
         if not pending:
             return
         if time.monotonic() >= deadline:
-            raise DemoNotReady("still processing: " + ", ".join(pending))
+            raise DemoStillProcessing("still processing: " + ", ".join(pending))
         time.sleep(interval)

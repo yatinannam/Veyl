@@ -61,7 +61,10 @@ Stated in spec section 11 and repeated here:
 
 ## Open review items
 
-Remaining minor findings from the phase reviews, being closed under the [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md) (fixed items are recorded in the [dev log](devlog.md)):
+Every minor finding from the six phase reviews was triaged in the [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md) and fixed, with a test that failed first, except these three, which stay open by decision:
 
-- Concurrent permission edits: the later save wins without a warning.
-- A seed that fails after creating the tenants should say the demo is incomplete; one demo test can pass vacuously.
+| Finding | Why it stays open |
+|---|---|
+| prettier and coverage tooling from the original tooling list | ESLint and the TypeScript checker already gate the frontend; coverage percentages add no guarantee the security tests do not. |
+| The embedding model revision is not pinned beyond the library version | fastembed is pinned in `uv.lock`, the model is baked into the image at build time, and a real-model test checks it loads and embeds. |
+| Chunk ACL equality with the document is not enforced by a database trigger | `acl_version` matching and the Python re-check already make a mismatched chunk invisible; a trigger would duplicate them on every chunk write. |

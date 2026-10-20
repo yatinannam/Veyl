@@ -2,6 +2,15 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-20 — Hardening, Batch F and close-out: every review finding resolved
+
+**Batch F** (tests RED to GREEN unless noted)
+- *P5-9:* permission changes use optimistic concurrency. Documents expose `acl_version`; `PUT /documents/{id}/permissions` accepts `expected_acl_version` and answers `409 conflict` ("Someone else changed these permissions...") when it is stale. The dashboard's editor sends the version it loaded; on a conflict it shows the message, loads the latest permissions into the form, and checks the next save against them. Clients that send no version keep the old behaviour.
+- *P6-1:* a seed that fails says the demo may be incomplete and how to reset (`docker compose down -v`, start, seed again); a wait timeout is reported as success with the documents still processing; every failed document is named, not only the first.
+- *P6-3:* the demo admin test now requires a restricted citation to exist (it passed vacuously on an empty list). Passes, so the walkthrough really cites the financials.
+
+**Close-out** — all deferred findings from the six phase reviews are resolved: 12 were already fixed in later phases, 3 stay open by decision (listed with reasons in the threat model), and the rest were fixed across Batches A to F, each with a failing test first (strengthened tests proven by mutation). 353 backend tests, 57 frontend tests.
+
 ## 2026-10-20 — Hardening, Batch E: platform
 
 **Done** (tests RED to GREEN for the code changes)

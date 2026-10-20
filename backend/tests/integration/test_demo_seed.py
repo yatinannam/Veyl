@@ -3,7 +3,8 @@ from sqlalchemy import Engine, func, select
 
 from app import cli
 from app.db.schema import documents, tenants, users
-from app.demo.seed import AlreadySeeded, seed_demo
+from app.demo.http import DemoApiError
+from app.demo.seed import AlreadySeeded, DemoStillProcessing, DemoSummary, seed_demo
 from tests.api import client_for
 from tests.conftest import DatabaseUrls
 from tests.demo_support import DEMO_PASSWORD, DemoWorld, TestClientTransport
@@ -106,3 +107,35 @@ def test_cli_seed_demo_reports_an_existing_demo(
     monkeypatch.setenv("VEYL_DEMO_PASSWORD", DEMO_PASSWORD)
     assert cli.main(["seed-demo", "--api-url", "http://127.0.0.1:9"]) == 1
     assert "Demo already seeded" in capsys.readouterr().err
+
+
+def test_cli_seed_demo_explains_a_half_finished_seed(
+    database_urls: DatabaseUrls, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def broken(*args: object, **kwargs: object) -> object:
+        raise DemoApiError(503, "service_unavailable", "API went away")
+
+    monkeypatch.setenv("MIGRATIONS_DATABASE_URL", database_urls.owner)
+    monkeypatch.setenv("VEYL_DEMO_PASSWORD", DEMO_PASSWORD)
+    monkeypatch.setattr(cli, "seed_demo", broken)
+    assert cli.main(["seed-demo", "--api-url", "http://127.0.0.1:9"]) == 1
+    err = capsys.readouterr().err
+    assert "incomplete" in err and "docker compose down -v" in err
+
+
+def test_cli_seed_demo_reports_slow_processing_as_success(
+    database_urls: DatabaseUrls, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def created(*args: object, **kwargs: object) -> DemoSummary:
+        return DemoSummary(tenants=["acme"], users=["alice@acme.test"], documents=["Handbook"])
+
+    def slow(*args: object, **kwargs: object) -> None:
+        raise DemoStillProcessing("still processing: Handbook")
+
+    monkeypatch.setenv("MIGRATIONS_DATABASE_URL", database_urls.owner)
+    monkeypatch.setenv("VEYL_DEMO_PASSWORD", DEMO_PASSWORD)
+    monkeypatch.setattr(cli, "seed_demo", created)
+    monkeypatch.setattr(cli, "wait_until_ready", slow)
+    assert cli.main(["seed-demo", "--api-url", "http://127.0.0.1:9"]) == 0
+    out = capsys.readouterr().out
+    assert "still processing" in out and "alice@acme.test" in out

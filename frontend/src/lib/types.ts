@@ -92,6 +92,7 @@ export interface DocumentInfo {
   can_manage: boolean;
   allowed_roles: Role[] | null;
   allowed_user_ids: string[] | null;
+  acl_version: number;
 }
 
 export interface UserInfo {

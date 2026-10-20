@@ -54,6 +54,7 @@ def test_admin_gets_cited_answer_from_board_financials(demo_world: DemoWorld) ->
         answer = ask(client, "What was Acme's revenue in Q3? Board financials revenue cash")
     assert FINANCIALS in llm.prompt_text()
     restricted = [c for c in answer["citations"] if c["document_title"] == "Q3 Board Financials"]
+    assert restricted, "the answer must actually cite the board financials"
     assert all(c["classification"] == "restricted" for c in restricted)
 
 
