@@ -56,10 +56,15 @@ export function PermissionEditor({
       setError(describeError(failure));
       if (failure instanceof ApiError && failure.code === "conflict") {
         // Show what the other person saved; the next save is checked against it.
-        const latest = await api.get<DocumentInfo>(`/documents/${document.id}`);
-        setAcl(aclOf(latest));
-        setVersion(latest.acl_version);
-        onSaved(latest);
+        try {
+          const latest = await api.get<DocumentInfo>(`/documents/${document.id}`);
+          setAcl(aclOf(latest));
+          setVersion(latest.acl_version);
+          onSaved(latest);
+        } catch (reloadFailure) {
+          // The other change may have taken this document out of reach entirely.
+          setError(`${describeError(failure)} ${describeError(reloadFailure)}`);
+        }
       }
     } finally {
       setPending(false);

@@ -202,16 +202,16 @@ def update_permissions(
     refused if someone else changed the permissions since the caller loaded them."""
     with tenant_transaction(engine, ctx.tenant_id) as conn:
         current = _readable_row(conn, ctx, document_id, lock=True)
-        if expected_acl_version is not None and current.acl_version != expected_acl_version:
-            raise Conflict(
-                "Someone else changed these permissions. Reload to see the latest, then try again."
-            )
         authorize(
             ctx,
             Action.DOCUMENT_MANAGE,
             _ref(ctx, current.uploaded_by, Classification(current.classification)),
         )
         authorize(ctx, Action.DOCUMENT_MANAGE, _ref(ctx, current.uploaded_by, classification))
+        if expected_acl_version is not None and current.acl_version != expected_acl_version:
+            raise Conflict(
+                "Someone else changed these permissions. Reload to see the latest, then try again."
+            )
         roles, user_ids = _acl(allowed_roles, allowed_user_ids, current.uploaded_by)
         _require_tenant_users(conn, ctx.tenant_id, user_ids)
         row = conn.execute(

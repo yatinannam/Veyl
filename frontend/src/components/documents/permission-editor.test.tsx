@@ -60,4 +60,27 @@ describe("PermissionEditor", () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(bodies[1]).toMatchObject({ classification: "confidential", expected_acl_version: 4 });
   });
+
+  it("keeps the explanation when the latest permissions can no longer be loaded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        Promise.resolve(
+          init?.method === "PUT"
+            ? Response.json(
+                { error: { code: "conflict", message: "Someone else changed these permissions.", trace_id: "t" } },
+                { status: 409 },
+              )
+            : Response.json({ error: { code: "not_found", message: "x", trace_id: "t" } }, { status: 404 }),
+        ),
+      ),
+    );
+    render(<PermissionEditor document={doc} role="admin" people={[]} onSaved={vi.fn()} onDeleted={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save permissions" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Someone else changed");
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("no longer have access"),
+    );
+    expect(screen.getByRole("button", { name: "Save permissions" })).toBeEnabled();
+  });
 });

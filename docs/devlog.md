@@ -2,6 +2,23 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-20 — Hardening review: fixes and deferred items
+
+**Review** — independent review of the whole hardening pass: no Critical, 1 Important, 6 Minor. It re-ran the suites, brought up a scratch stack with every hardening setting (seed, ingestion through the read-only worker, a cited query), and confirmed the pinned action SHAs.
+
+**Fixed** (each with a test that failed first)
+- *(Important) A database outage during sign-in counted against the user.* The attempt was reserved before the credentials were checked and never released when the database call failed, so five retries during a restart locked the account for 15 minutes after recovery (and an office behind one address could exhaust the IP budget). Attempts are now released when the credentials were never checked.
+- *(Re-graded to Important) NFKC changed what the model read.* Normalising whole source text turned superscripts and fractions into different text ("10" with superscript "-3" became "10-3"). Detection now looks through invisible characters and compatibility forms, but only the `<` of a source tag is escaped; the rest of the text is unchanged. It also catches more invisible characters (soft hyphen, invisible operators, combining joiners). The HTML-entity form (`&lt;source`, `&#60;source`) is what the escaping itself produces, so it is inert by construction.
+- *The audit `event_type` filter accepted NUL* and returned a 500; it is now `SafeText` (422).
+- *Permission edits:* authorization is checked before the version, so someone without rights gets 403, not 409.
+- *`LOG_LEVEL`:* the app logger now has a handler, so `info` and `debug` are emitted (only warnings reached the console before), and an unknown level is a clear configuration error.
+- *Dashboard:* if the latest permissions cannot be loaded after a conflict (for example, the other change removed access), the editor shows why instead of failing silently.
+- *README:* the container hardening sentence now says the edge proxy keeps its capabilities.
+
+**Deferred (Minor, recorded in the threat model)** — the LLM time limit can overrun by one socket timeout; ingestion leases are not renewed (matters only with several workers and documents over 10 minutes); `acl_version` is visible to readers.
+
+364 backend tests, 58 frontend tests.
+
 ## 2026-10-20 — Hardening, Batch F and close-out: every review finding resolved
 
 **Batch F** (tests RED to GREEN unless noted)

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.audit import service
 from app.auth.deps import CurrentUser, EngineDep, TraceId
+from app.text import SafeText
 
 router = APIRouter(prefix="/audit-events", tags=["audit"])
 
@@ -39,7 +40,7 @@ def list_audit_events(
     trace_id: TraceId,
     user_id: UUID | None = None,
     document_id: UUID | None = None,
-    event_type: Annotated[str | None, Query(max_length=64)] = None,
+    event_type: Annotated[SafeText | None, Query(max_length=64)] = None,
     occurred_from: Annotated[datetime | None, Query(alias="from")] = None,
     occurred_to: Annotated[datetime | None, Query(alias="to")] = None,
     cursor: Annotated[str | None, Query(max_length=200)] = None,

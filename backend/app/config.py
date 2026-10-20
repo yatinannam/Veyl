@@ -47,6 +47,13 @@ class Settings(BaseSettings):
             raise ValueError("AUDIT_HMAC_KEY must be at least 32 characters")
         return value
 
+    @field_validator("log_level")
+    @classmethod
+    def _known_log_level(cls, value: str) -> str:
+        if value.upper() not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            raise ValueError("LOG_LEVEL must be one of debug, info, warning, error, critical")
+        return value.lower()
+
     @model_validator(mode="after")
     def _no_example_secrets_in_production(self) -> "Settings":
         # The value shipped in .env.example is public; an audit reference keyed with it

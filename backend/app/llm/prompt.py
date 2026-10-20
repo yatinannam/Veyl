@@ -3,7 +3,6 @@ data, its delimiters are neutralised, and the model gets no tools. Injection can
 distort an answer built from content the caller may already read; it cannot widen access,
 because retrieval is finished before the model sees anything."""
 
-import re
 import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -29,10 +28,6 @@ SYSTEM_PROMPT = "\n".join(
     ]
 )
 
-_DELIMITER = re.compile(r"<(\s*/?\s*source)", re.IGNORECASE)
-# Characters that render as nothing; a model may read "<\u200bsource" as "<source".
-_INVISIBLE = re.compile("[\u200b-\u200d\u2060\ufeff]")
-
 
 @dataclass(frozen=True, slots=True)
 class HistoryTurn:
@@ -46,12 +41,51 @@ class PromptSource:
     chunk: RetrievedChunk
 
 
+# A model may read "<" + invisible characters + "source", or fullwidth or other compatibility
+# forms of it, as a source tag. Detection looks through those forms; only the "<" itself is
+# escaped, so the rest of the text reaches the model exactly as written (NFKC would turn
+# "10^-3" written with superscripts into "10-3", changing its meaning).
+_TARGET = "source"
+
+
+def _canonical(ch: str) -> str:
+    return unicodedata.normalize("NFKC", ch).casefold()
+
+
+def _invisible(ch: str) -> bool:
+    return unicodedata.category(ch) in {"Cf", "Mn", "Me"}
+
+
+def _skip_space_and_invisible(text: str, i: int) -> int:
+    while i < len(text) and (text[i].isspace() or _invisible(text[i])):
+        i += 1
+    return i
+
+
+def _opens_a_source_tag(text: str, i: int) -> bool:
+    """Whether text[i:] reads as "/source" or "source" after a "<", ignoring whitespace
+    around the slash and invisible characters inside the word."""
+    i = _skip_space_and_invisible(text, i)
+    if i < len(text) and _canonical(text[i]) == "/":
+        i = _skip_space_and_invisible(text, i + 1)
+    seen = ""
+    while i < len(text) and len(seen) < len(_TARGET):
+        if _invisible(text[i]):
+            i += 1
+            continue
+        seen += _canonical(text[i])
+        if not _TARGET.startswith(seen[: len(_TARGET)]):
+            return False
+        i += 1
+    return seen.startswith(_TARGET)
+
+
 def neutralise(text: str) -> str:
-    """Stop text from opening or closing a source block, including look-alikes: invisible
-    characters are removed and compatibility forms (fullwidth letters and brackets) are
-    normalised (NFKC) before delimiters are escaped."""
-    visible = unicodedata.normalize("NFKC", _INVISIBLE.sub("", text))
-    return _DELIMITER.sub(r"&lt;\1", visible)
+    """Stop text from opening or closing a source block, including look-alikes."""
+    return "".join(
+        "&lt;" if _canonical(ch) == "<" and _opens_a_source_tag(text, i + 1) else ch
+        for i, ch in enumerate(text)
+    )
 
 
 def _attribute(text: str) -> str:

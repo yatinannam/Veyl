@@ -61,10 +61,13 @@ Stated in spec section 11 and repeated here:
 
 ## Open review items
 
-Every minor finding from the six phase reviews was triaged in the [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md) and fixed, with a test that failed first, except these three, which stay open by decision:
+Every minor finding from the six phase reviews was triaged in the [hardening plan](superpowers/plans/2026-10-18-hardening-open-items.md) and fixed, with a test that failed first, except these, which stay open by decision:
 
 | Finding | Why it stays open |
 |---|---|
 | prettier and coverage tooling from the original tooling list | ESLint and the TypeScript checker already gate the frontend; coverage percentages add no guarantee the security tests do not. |
 | The embedding model revision is not pinned beyond the library version | fastembed is pinned in `uv.lock`, the model is baked into the image at build time, and a real-model test checks it loads and embeds. |
 | Chunk ACL equality with the document is not enforced by a database trigger | `acl_version` matching and the Python re-check already make a mismatched chunk invisible; a trigger would duplicate them on every chunk write. |
+| The LLM time limit is checked between reads, so the body can overrun it by one socket timeout, and slow response headers are bounded only per read | Bounded at roughly twice the configured timeout against a provider the operator chose; a hard limit would need a watchdog thread or private socket access. |
+| Ingestion leases are not renewed | A document that takes longer than the 10-minute stale timeout to process could be reclaimed by a second worker; Compose runs a single worker, and extraction is capped at 60 seconds. |
+| `acl_version` is visible to every reader of a document | It reveals only how many times its permissions changed. |

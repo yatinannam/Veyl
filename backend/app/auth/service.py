@@ -88,6 +88,12 @@ def login(
             ).one_or_none()
         # Always verify (dummy hash for unknown users) so timing does not reveal accounts.
         password_ok = verify_password(row.password_hash if row else None, password)
+    except BaseException:
+        # The credentials were never checked (database down, for example): this attempt
+        # must not count towards a lockout that would outlast the outage.
+        limiters.account.release(account_key)
+        limiters.ip.release(ip_key)
+        raise
     finally:
         limiters.hashing.release()
     if row is None or not row.is_active or not password_ok:

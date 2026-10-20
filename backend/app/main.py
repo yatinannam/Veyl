@@ -51,6 +51,10 @@ def create_app(
     llm: LLMClient | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
+    # uvicorn configures only its own loggers; give the app's a handler so LOG_LEVEL=info
+    # and debug are emitted, not only warnings via Python's last-resort handler.
+    if not logging.getLogger().handlers:
+        logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("app").setLevel(settings.log_level.upper())
 
     @asynccontextmanager
