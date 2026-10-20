@@ -19,6 +19,8 @@ Newest entries first. Each entry: what was done, what's next, anything blocked.
 
 364 backend tests, 58 frontend tests.
 
+**CI note** — the first run of this commit failed in the Compose job because the web image build could not download the fonts from Google Fonts (`next/font/google` fetches them at build time); the re-run passed unchanged. Bundling the font files locally would remove that network dependency from builds.
+
 ## 2026-10-20 — Hardening, Batch F and close-out: every review finding resolved
 
 **Batch F** (tests RED to GREEN unless noted)
