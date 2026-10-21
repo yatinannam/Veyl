@@ -68,7 +68,8 @@ Render deploys again only when a commit that changes `backend/` passes CI.
    - `API_INTERNAL_URL`: the Render address.
    - `PROXY_SHARED_SECRET`: the same proxy secret as on Render.
    - `NEXT_PUBLIC_DEMO_PASSWORD`: the demo password.
-   - `ENABLE_EXPERIMENTAL_COREPACK`: `1` (uses the pnpm version pinned in `package.json`).
+
+   [`frontend/vercel.json`](../frontend/vercel.json) runs the install and build with the pnpm version the project pins, so nothing else needs configuring.
 4. **Deploy**. Open the address Vercel gives you. The sign-in page lists the demo accounts; click one.
 
 If the API was asleep, the dashboard says "Starting up, this can take a minute" and continues on its own.
@@ -101,4 +102,4 @@ GitHub pauses scheduled workflows in a repository with no activity for 60 days; 
 | `readyz` shows `unavailable` | The API cannot reach the database. Open the service's **Logs** in Render and find `readiness check failed: database unreachable (...)`: the part in brackets is the database's own reason, with passwords removed. `password authentication failed`: the password inside `DATABASE_URL` is not `VEYL_APP_PASSWORD` (re-run **Database setup**: its `check: veyl_app can sign in` line proves the secret works, so the Render value was mistyped; it must contain no `<`, `>`, quotes, or spaces). `could not translate host name` or `timeout`: the host part was changed or Neon is waking; try again after a minute. |
 | Seed says "Demo already seeded" | It was seeded before; run **Reset demo** instead. |
 | Sign-in fails with every demo account | `VEYL_DEMO_PASSWORD` and `NEXT_PUBLIC_DEMO_PASSWORD` differ; fix one, then run **Reset demo** (and redeploy Vercel if you changed its value). |
-| Vercel build fails on pnpm | `ENABLE_EXPERIMENTAL_COREPACK=1` is missing. |
+| Vercel install fails with `ERR_INVALID_THIS` or "Ignoring not compatible lockfile" | An old pnpm ran instead of the pinned one: check **Root Directory** is `frontend` (so `vercel.json` is read) and that no Install Command override is set in the project settings. |

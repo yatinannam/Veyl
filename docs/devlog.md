@@ -12,6 +12,10 @@ Newest entries first. Each entry: what was done, what's next, anything blocked.
 - Found while testing the new log line: running migrations in-process (Alembic's `fileConfig`) disabled every logger that already existed, including the API's. It now keeps them (`disable_existing_loggers=False`).
 - Troubleshooting in docs/deploy.md explains how to read the reason in Render's logs.
 
+**Then** — with `DATABASE_URL` re-entered on Render, `readyz` answered ready and **Seed demo** finished in under two minutes. Checked the live API directly: Alice's question about Q3 revenue was answered from the board financials with a citation; Mia and Gary got no restricted content.
+
+**Vercel build failed** — `pnpm install` failed with `ERR_INVALID_THIS` on every package and "Ignoring not compatible lockfile". Vercel reported it could not enable corepack ("package.json is missing packageManager", although `frontend/package.json` has it), so it used an old built-in pnpm that cannot read lockfile v9 and breaks on current Node. Fix: `frontend/vercel.json` runs install and build with `npx --yes pnpm@11.9.0` (checked locally: install from the frozen lockfile and a production build), so the build no longer depends on corepack; `ENABLE_EXPERIMENTAL_COREPACK` is no longer needed.
+
 **Tests** — the reason helper uses the driver error, removes secrets, URL credentials, and password settings, and flattens newlines; the readiness log carries a reason and never the password; the bootstrap CLI reports an app password that does not work, without echoing either password. 395 backend tests.
 
 ## 2026-10-21 — Hosting, Batch H4: demo reset and deployment files
