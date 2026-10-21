@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.auth import service
+from app.auth.client_ip import client_ip
 from app.auth.deps import (
     CSRF_COOKIE,
     SESSION_COOKIE,
@@ -87,7 +88,7 @@ def login(
         tenant_slug=body.tenant_slug,
         email=body.email,
         password=body.password,
-        client_ip=request.client.host if request.client else "unknown",
+        client_ip=client_ip(request, settings),
         session_ttl=timedelta(minutes=settings.session_ttl_minutes),
         previous_token=request.cookies.get(SESSION_COOKIE),
     )

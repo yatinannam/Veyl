@@ -9,11 +9,17 @@ from sqlalchemy import Connection, Engine, delete, func, insert, select, update
 from app.audit import service as audit
 from app.authz import Action, AuthContext, Classification, DocumentRef, Role, authorize, is_allowed
 from app.authz.sql import document_read_filter
-from app.db.schema import document_chunks, documents, ingestion_jobs, users
+from app.db.schema import document_chunks, documents, ingestion_jobs, tenants, users
 from app.db.tenancy import bump_policy_version, tenant_transaction
 from app.documents.storage import LocalStorage
 from app.documents.validation import ValidatedUpload
 from app.errors import AppError, Conflict, NotFound
+
+
+class DocumentLimitReached(AppError):
+    status_code = 409
+    code = "document_limit_reached"
+    default_message = "This workspace has reached its document limit. Delete a document first."
 
 
 class UnknownUsers(AppError):
@@ -106,6 +112,21 @@ def _require_tenant_users(conn: Connection, tenant_id: UUID, user_ids: list[UUID
         raise UnknownUsers()
 
 
+def _require_room(conn: Connection, tenant_id: UUID, max_documents: int) -> None:
+    # Lock the tenant row so concurrent uploads count one at a time. NO KEY UPDATE does
+    # not block inserts elsewhere that reference the tenant.
+    conn.execute(
+        select(tenants.c.id).where(tenants.c.id == tenant_id).with_for_update(key_share=True)
+    )
+    live = conn.execute(
+        select(func.count())
+        .select_from(documents)
+        .where(documents.c.tenant_id == tenant_id, documents.c.deleted_at.is_(None))
+    ).scalar_one()
+    if live >= max_documents:
+        raise DocumentLimitReached()
+
+
 def upload_document(
     engine: Engine,
     storage: LocalStorage,
@@ -117,6 +138,7 @@ def upload_document(
     classification: Classification,
     allowed_roles: Iterable[Role],
     allowed_user_ids: Iterable[UUID],
+    max_documents: int | None = None,
 ) -> DocumentRecord:
     authorize(ctx, Action.DOCUMENT_UPLOAD, _ref(ctx, ctx.user_id, classification))
     roles, user_ids = _acl(allowed_roles, allowed_user_ids, ctx.user_id)
@@ -126,6 +148,8 @@ def upload_document(
     try:
         with tenant_transaction(engine, ctx.tenant_id) as conn:
             _require_tenant_users(conn, ctx.tenant_id, user_ids)
+            if max_documents is not None:
+                _require_room(conn, ctx.tenant_id, max_documents)
             row = conn.execute(
                 insert(documents)
                 .values(

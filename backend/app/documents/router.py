@@ -98,6 +98,7 @@ def upload_document(
         classification=classification,
         allowed_roles=allowed_roles or [],
         allowed_user_ids=allowed_user_ids or [],
+        max_documents=settings.max_documents_per_workspace,
     )
     return _out(ctx, record)
 

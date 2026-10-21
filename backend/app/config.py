@@ -11,26 +11,40 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     database_url: SecretStr
+    # Hosted databases that sleep (Neon) can take a few seconds to accept a connection.
+    database_connect_timeout_seconds: int = Field(default=3, ge=1, le=60)
     environment: Literal["development", "test", "production"] = "development"
     log_level: str = "info"
     session_ttl_minutes: int = Field(default=720, ge=5, le=10080)
     login_max_failures: int = Field(default=5, ge=1)
     login_window_seconds: int = Field(default=900, ge=1)
     login_max_concurrent_hashes: int = Field(default=4, ge=1)
+    # Client IP for login rate limiting. A request carrying the shared secret (sent only
+    # by the dashboard's server-side proxy) may name the visitor's IP; otherwise, with
+    # hops > 0, the entry that many places from the right of X-Forwarded-For is used
+    # (each trusted proxy appends one); otherwise the TCP peer.
+    proxy_shared_secret: SecretStr | None = None
+    forwarded_for_hops: int = Field(default=0, ge=0, le=5)
 
     upload_dir: str = "/data/uploads"
     max_upload_mb: int = Field(default=10, ge=1, le=100)
+    # Live documents per workspace; unset means no limit. Caps storage on a public demo.
+    max_documents_per_workspace: int | None = Field(default=None, ge=1)
     max_pdf_pages: int = Field(default=200, ge=1)
     max_extracted_chars: int = Field(default=2_000_000, ge=1000)
     extraction_timeout_seconds: float = Field(default=60.0, gt=0)
     extraction_memory_mb: int = Field(default=1024, ge=64)
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_cache_dir: str | None = None
+    embedding_batch_size: int = Field(default=256, ge=1, le=1024)
     retrieval_top_k: int = Field(default=6, ge=1, le=50)
     # Measured on bge-small: relevant top scores 0.60-0.78, unrelated questions <= 0.45.
     retrieval_min_score: float = Field(default=0.5, ge=-1.0, le=1.0)
     retrieval_cache_ttl_seconds: int = Field(default=600, ge=0)
     worker_poll_seconds: float = Field(default=2.0, gt=0)
+    # Ingest in a background thread of the API process instead of a separate worker
+    # (one small host; the embedding model is loaded once and shared).
+    run_ingestion_worker: bool = False
 
     llm_base_url: str = "https://api.groq.com/openai/v1"
     llm_model: str = "openai/gpt-oss-120b"
@@ -45,6 +59,13 @@ class Settings(BaseSettings):
     def _audit_key_is_long_enough(cls, value: SecretStr) -> SecretStr:
         if len(value.get_secret_value()) < 32:
             raise ValueError("AUDIT_HMAC_KEY must be at least 32 characters")
+        return value
+
+    @field_validator("proxy_shared_secret")
+    @classmethod
+    def _proxy_secret_is_long_enough(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and len(value.get_secret_value()) < 32:
+            raise ValueError("PROXY_SHARED_SECRET must be at least 32 characters")
         return value
 
     @field_validator("log_level")

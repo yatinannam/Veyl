@@ -24,4 +24,6 @@ RUN mkdir -p /data/uploads && chown veyl /data/uploads
 USER veyl
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+# Hosts such as Render choose the port through PORT. Forwarded headers are handled by the
+# app (app/auth/client_ip.py), never by uvicorn.
+CMD ["sh", "-c", "exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port \"${PORT:-8000}\" --no-proxy-headers"]

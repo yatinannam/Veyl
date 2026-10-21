@@ -217,7 +217,7 @@ sequenceDiagram
 | Citation check | Only markers that map to supplied excerpts survive |
 | Dashboard | Nothing; it is a convenience, never an authority |
 
-Ingestion runs in a separate worker: jobs are claimed with `SKIP LOCKED`, text is extracted in a child process with a timeout, memory limit, and character cap, chunks are embedded locally with `BAAI/bge-small-en-v1.5` (384 dimensions), and each chunk receives a copy of its document's ACL and `acl_version`. Details: [architecture](docs/architecture.md).
+Ingestion runs in a separate worker: jobs are claimed with `SKIP LOCKED`, text is extracted in a child process with a timeout, memory limit, and character cap, chunks are embedded locally with `BAAI/bge-small-en-v1.5` (384 dimensions), and each chunk receives a copy of its document's ACL and `acl_version`. On a single small host, `RUN_INGESTION_WORKER=true` runs the same loop on a background thread of the API process instead, sharing one copy of the embedding model. Details: [architecture](docs/architecture.md).
 
 ## Authorization model
 
@@ -297,13 +297,13 @@ Fifty-two decisions are recorded with their alternatives in the [decision log](d
 
 | Suite | Size | Runs against |
 |---|---|---|
-| Backend unit | 93 test functions | Policy, chunker, prompt builder, citation parser, extractors |
-| Backend integration | 104 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
+| Backend unit | 102 test functions | Policy, chunker, prompt builder, citation parser, extractors |
+| Backend integration | 114 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
 | Backend security | 102 test functions | The threat model, end to end through the API |
 | Frontend | 58 tests | Vitest and Testing Library |
 | Compose smoke (CI) | 12 steps | The full stack: owner credentials absent from the API and worker, sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
 
-With parametrisation the backend collects **364 tests**. Highlights:
+With parametrisation the backend collects **386 tests**. Highlights:
 
 - **Demo scenario:** seeds both companies through the API and asserts on every recorded prompt. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of its seven tests fail.
 - **Filter equivalence:** an exhaustive test over every combination of tenants, users, roles, classifications, and grants proves the SQL read filter and the Python rule agree; Hypothesis property tests cover the policy and chunker invariants.
@@ -327,7 +327,9 @@ Set these in `.env` (see [`.env.example`](.env.example)); Compose passes them to
 | `LOG_LEVEL` | `info` | Log verbosity |
 | `VEYL_DEMO_PASSWORD` | none | Password for every demo account (seed only) |
 
-Further application settings have safe defaults and can be added to the `api` service's environment: `RETRIEVAL_TOP_K` (6), `RETRIEVAL_CACHE_TTL_SECONDS` (600), `SESSION_TTL_MINUTES` (720), `LOGIN_MAX_FAILURES` and `LOGIN_WINDOW_SECONDS` (5 per 900 s), `HISTORY_MAX_TURNS` (6), `LLM_TIMEOUT_SECONDS` (30), `LLM_MAX_TOKENS` (1024), `MAX_PDF_PAGES` (200), `EXTRACTION_TIMEOUT_SECONDS` (60).
+Further application settings have safe defaults and can be added to the `api` service's environment: `RETRIEVAL_TOP_K` (6), `RETRIEVAL_CACHE_TTL_SECONDS` (600), `SESSION_TTL_MINUTES` (720), `LOGIN_MAX_FAILURES` and `LOGIN_WINDOW_SECONDS` (5 per 900 s), `HISTORY_MAX_TURNS` (6), `LLM_TIMEOUT_SECONDS` (30), `LLM_MAX_TOKENS` (1024), `MAX_PDF_PAGES` (200), `EXTRACTION_TIMEOUT_SECONDS` (60), `EXTRACTION_MEMORY_MB` (1024), `EMBEDDING_BATCH_SIZE` (256), `DATABASE_CONNECT_TIMEOUT_SECONDS` (3).
+
+For hosting on one small service: `RUN_INGESTION_WORKER` (off) ingests inside the API process; `MAX_DOCUMENTS_PER_WORKSPACE` (no limit) caps live documents per workspace; `PORT` (8000) is the listening port. The client IP used for login rate limiting is the TCP peer unless the deployment says otherwise: `PROXY_SHARED_SECRET` (32+ characters) lets the dashboard's server-side proxy name the visitor in `X-Veyl-Client-IP`, and `FORWARDED_FOR_HOPS` (0; Compose sets 1 for its edge) reads that many entries from the right of `X-Forwarded-For`. uvicorn's own forwarded-header handling is off.
 
 ## LLM providers
 

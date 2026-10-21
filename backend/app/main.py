@@ -21,14 +21,19 @@ from app.rag import router as rag_router
 from app.retrieval.embeddings import Embedder, FastEmbedEmbedder, LazyEmbedder
 from app.tenants import router as tenants_router
 from app.users import router as users_router
+from app.worker import BackgroundWorker, build_ingestor
 
 API_PREFIX = "/api/v1"
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
+# Hosts give a stopping process a few seconds (Render: 30) before killing it.
+WORKER_STOP_TIMEOUT_SECONDS = 20.0
 
 
 def _default_embedder(settings: Settings) -> Embedder:
     return LazyEmbedder(
-        lambda: FastEmbedEmbedder(settings.embedding_model, settings.embedding_cache_dir),
+        lambda: FastEmbedEmbedder(
+            settings.embedding_model, settings.embedding_cache_dir, settings.embedding_batch_size
+        ),
         settings.embedding_model,
     )
 
@@ -59,11 +64,22 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        engine = create_db_engine(settings.database_url.get_secret_value())
+        engine = create_db_engine(
+            settings.database_url.get_secret_value(),
+            connect_timeout_seconds=settings.database_connect_timeout_seconds,
+        )
         app.state.engine = engine
+        worker = None
+        if settings.run_ingestion_worker:
+            ingestor = build_ingestor(settings, engine, app.state.embedder)
+            worker = BackgroundWorker(ingestor, settings.worker_poll_seconds)
+            worker.start()
+        app.state.ingestion_worker = worker
         try:
             yield
         finally:
+            if worker is not None:
+                worker.stop(WORKER_STOP_TIMEOUT_SECONDS)
             engine.dispose()
 
     app = FastAPI(

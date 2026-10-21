@@ -67,12 +67,8 @@ services:
       - 0.0.0.0
       - --port
       - "8000"
-      # Trust X-Forwarded-For so login rate limiting sees the browser's IP. The header is
-      # authoritative because `edge` (Caddy) overwrites any client-supplied value and
-      # Next.js forwards it unchanged. Only localhost can reach this port directly.
-      - --proxy-headers
-      - --forwarded-allow-ips
-      - "*"
+      # The app decides which forwarded header to believe (FORWARDED_FOR_HOPS below).
+      - --no-proxy-headers
     environment:
       DATABASE_URL: postgresql+psycopg://veyl_app:${VEYL_APP_PASSWORD}@db:5432/veyl
       AUDIT_HMAC_KEY: ${AUDIT_HMAC_KEY:?set AUDIT_HMAC_KEY in .env}
@@ -85,6 +81,10 @@ services:
       LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-120b}
       LLM_API_KEY: ${LLM_API_KEY:-}
       RETRIEVAL_MIN_SCORE: ${RETRIEVAL_MIN_SCORE:-0.5}
+      # Login rate limiting uses the last X-Forwarded-For entry: `edge` (Caddy) replaces
+      # any client-supplied value with the real peer and Next.js passes it on unchanged.
+      # Only localhost can reach this port directly.
+      FORWARDED_FOR_HOPS: "1"
     volumes:
       - uploads:/data/uploads
     depends_on:
