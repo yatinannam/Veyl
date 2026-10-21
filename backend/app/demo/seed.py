@@ -3,13 +3,13 @@ deliberately has no way to create them; people, documents, and permissions are t
 created through the public API as each company's admin, exactly as a person would."""
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import Engine, select
 
 from app.db.schema import tenants
-from app.demo.content import TENANTS, DemoTenant
+from app.demo.content import TENANTS, DemoDocument, DemoTenant
 from app.demo.http import ApiSession, Multipart, Transport
 from app.provisioning import provision_tenant
 
@@ -33,8 +33,8 @@ class DemoSummary:
     documents: list[str]
 
 
-def _existing(owner_engine: Engine) -> list[str]:
-    slugs = [t.slug for t in TENANTS]
+def _existing(owner_engine: Engine, demo: Sequence[DemoTenant]) -> list[str]:
+    slugs = [t.slug for t in demo]
     with owner_engine.connect() as conn:
         return list(conn.execute(select(tenants.c.slug).where(tenants.c.slug.in_(slugs))).scalars())
 
@@ -48,26 +48,34 @@ def _seed_tenant(session: ApiSession, tenant: DemoTenant, password: str) -> None
         )
         ids[person.email] = created["id"]
     for document in tenant.documents:
-        fields = [("title", document.title), ("classification", document.classification)]
-        fields += [("allowed_roles", role) for role in document.allowed_roles]
-        fields += [("allowed_user_ids", ids[email]) for email in document.shared_with]
-        session.post(
-            "/documents",
-            multipart=Multipart(
-                fields=fields,
-                files=[("file", document.filename, "text/markdown", document.content())],
-            ),
-        )
+        upload_document(session, document, ids)
+
+
+def upload_document(session: ApiSession, document: DemoDocument, ids: Mapping[str, str]) -> None:
+    """Upload one demo document as the signed-in admin; `ids` maps emails to user ids."""
+    fields = [("title", document.title), ("classification", document.classification)]
+    fields += [("allowed_roles", role) for role in document.allowed_roles]
+    fields += [("allowed_user_ids", ids[email]) for email in document.shared_with]
+    session.post(
+        "/documents",
+        multipart=Multipart(
+            fields=fields,
+            files=[("file", document.filename, "text/markdown", document.content())],
+        ),
+    )
 
 
 def seed_demo(
-    owner_engine: Engine, new_transport: Callable[[], Transport], password: str
+    owner_engine: Engine,
+    new_transport: Callable[[], Transport],
+    password: str,
+    demo: Sequence[DemoTenant] = TENANTS,
 ) -> DemoSummary:
     """Creates Acme and Globex. Refuses (and changes nothing) if either already exists."""
-    existing = _existing(owner_engine)
+    existing = _existing(owner_engine, demo)
     if existing:
         raise AlreadySeeded(", ".join(sorted(existing)))
-    for tenant in TENANTS:
+    for tenant in demo:
         provision_tenant(
             owner_engine,
             slug=tenant.slug,
@@ -75,12 +83,12 @@ def seed_demo(
             admin_email=tenant.admin.email,
             admin_password=password,
         )
-    for tenant in TENANTS:
+    for tenant in demo:
         _seed_tenant(ApiSession(new_transport()), tenant, password)
     return DemoSummary(
-        tenants=[t.slug for t in TENANTS],
-        users=[u.email for t in TENANTS for u in (t.admin, *t.people)],
-        documents=[d.title for t in TENANTS for d in t.documents],
+        tenants=[t.slug for t in demo],
+        users=[u.email for t in demo for u in (t.admin, *t.people)],
+        documents=[d.title for t in demo for d in t.documents],
     )
 
 
@@ -90,11 +98,12 @@ def wait_until_ready(
     *,
     timeout: float,
     interval: float = 2.0,
+    demo: Sequence[DemoTenant] = TENANTS,
 ) -> None:
     """Waits until the worker has processed every demo document, so the walkthrough works
     as soon as the command returns. Raises DemoNotReady naming what is still missing."""
     sessions = []
-    for tenant in TENANTS:
+    for tenant in demo:
         session = ApiSession(new_transport())
         session.login(tenant.slug, tenant.admin.email, password)
         sessions.append((tenant, session))
@@ -113,6 +122,8 @@ def wait_until_ready(
         if failed:
             raise DemoNotReady("failed to process: " + "; ".join(failed))
         if not pending:
+            for _, session in sessions:
+                session.logout()
             return
         if time.monotonic() >= deadline:
             raise DemoStillProcessing("still processing: " + ", ".join(pending))

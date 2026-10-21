@@ -147,3 +147,6 @@ class ApiSession:
         return self.post(
             "/auth/login", json={"tenant_slug": slug, "email": email, "password": password}
         )
+
+    def logout(self) -> None:
+        self.post("/auth/logout")

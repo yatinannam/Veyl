@@ -1,0 +1,47 @@
+# Render Blueprint for the public demo API (free plan: 0.1 CPU, 512 MB, sleeps when idle).
+# The dashboard runs on Vercel and the database on Neon; see docs/deploy.md.
+services:
+  - type: web
+    name: veyl-api
+    runtime: docker
+    plan: free
+    # Keep the API next to the Neon database.
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/healthz
+    # Deploy a commit only after its CI checks pass, and only when the backend changed.
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      # Prompted for when the Blueprint is created; never stored in the repository.
+      - key: DATABASE_URL
+        sync: false
+      - key: PROXY_SHARED_SECRET
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: AUDIT_HMAC_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # One process: the ingestion worker runs on a thread of the API.
+      - key: RUN_INGESTION_WORKER
+        value: "true"
+      # Measured to fit 512 MB with room to spare (docs/devlog.md, Batch H2).
+      - key: EMBEDDING_BATCH_SIZE
+        value: "16"
+      - key: EXTRACTION_MEMORY_MB
+        value: "256"
+      # Open demo: small uploads, a few per company.
+      - key: MAX_UPLOAD_MB
+        value: "4"
+      - key: MAX_DOCUMENTS_PER_WORKSPACE
+        value: "25"
+      # Neon's compute sleeps too; give it time to wake.
+      - key: DATABASE_CONNECT_TIMEOUT_SECONDS
+        value: "15"

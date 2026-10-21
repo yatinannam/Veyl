@@ -1,0 +1,38 @@
+name: Reset demo
+
+# Every night, and by hand: returns the public demo to its seeded state. Audit records are
+# kept; the reset adds one "Demo reset" event per company.
+on:
+  schedule:
+    # 20:30 UTC is 02:00 in India.
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      API_URL: ${{ vars.VEYL_API_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - run: uv sync --frozen --no-dev
+      - name: Wake the API
+        run: curl -fsS --retry 20 --retry-delay 10 --retry-all-errors --max-time 120 "$API_URL/api/v1/readyz"
+      - name: Reset
+        env:
+          ADMIN_DATABASE_URL: ${{ secrets.NEON_ADMIN_URL }}
+          VEYL_OWNER_PASSWORD: ${{ secrets.VEYL_OWNER_PASSWORD }}
+          VEYL_DEMO_PASSWORD: ${{ vars.VEYL_DEMO_PASSWORD }}
+        run: uv run python -m app.cli reset-demo --api-url "$API_URL" --wait 900

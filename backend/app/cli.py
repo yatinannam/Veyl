@@ -15,6 +15,7 @@ from sqlalchemy.engine import URL, make_url
 from app.bootstrap import APP, OWNER, bootstrap_database
 from app.db.engine import create_db_engine, normalise_database_url
 from app.demo.http import DemoApiError, UrllibTransport
+from app.demo.reset import DemoMissing, reset_demo
 from app.demo.seed import (
     AlreadySeeded,
     DemoNotReady,
@@ -41,9 +42,41 @@ def _provision(engine: Engine, args: argparse.Namespace, password: str) -> int:
     return 0
 
 
+# A hosted API that sleeps (Render's free plan) can take about a minute to answer.
+API_TIMEOUT_SECONDS = 120.0
+
+
+def _reset_demo(engine: Engine, args: argparse.Namespace, password: str) -> int:
+    def new_transport() -> UrllibTransport:
+        return UrllibTransport(args.api_url, timeout=API_TIMEOUT_SECONDS)
+
+    try:
+        report = reset_demo(engine, new_transport, password)
+        print(
+            f"Reset the demo: {report.people_restored} people restored, "
+            f"{report.people_removed} added people removed, "
+            f"{report.documents_removed} documents removed."
+        )
+        if report.documents_reuploaded:
+            print("Uploaded again: " + ", ".join(report.documents_reuploaded))
+            wait_until_ready(new_transport, password, timeout=args.wait)
+    except DemoMissing as exc:
+        print(
+            f"error: the demo company {exc} does not exist; run seed-demo first.", file=sys.stderr
+        )
+        return 1
+    except DemoStillProcessing as exc:
+        print(f"Reset done; the worker is {exc}.")
+    except (DemoApiError, DemoNotReady, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print("Demo ready.")
+    return 0
+
+
 def _seed_demo(engine: Engine, args: argparse.Namespace, password: str) -> int:
     def new_transport() -> UrllibTransport:
-        return UrllibTransport(args.api_url)
+        return UrllibTransport(args.api_url, timeout=API_TIMEOUT_SECONDS)
 
     still_processing: str | None = None
     try:
@@ -55,7 +88,8 @@ def _seed_demo(engine: Engine, args: argparse.Namespace, password: str) -> int:
             still_processing = str(exc)
     except AlreadySeeded as exc:
         print(
-            f"Demo already seeded ({exc}). Reset with `docker compose down -v` to start over.",
+            f"Demo already seeded ({exc}). Run reset-demo to restore it, or locally "
+            "`docker compose down -v` to start over.",
             file=sys.stderr,
         )
         return 1
@@ -136,6 +170,20 @@ def _url_template(admin: URL, user: str, password: str) -> str:
     return f"postgresql://{user}:{password}@{admin.host}{port}/{admin.database}{suffix}"
 
 
+def _owner_url() -> str | None:
+    """The owner's connection string. On a hosted database the admin URL supplies only the
+    host, database, and options; the connection itself is made as the owner."""
+    url = os.environ.get("MIGRATIONS_DATABASE_URL")
+    if url:
+        return url
+    admin = os.environ.get("ADMIN_DATABASE_URL")
+    owner_password = os.environ.get("VEYL_OWNER_PASSWORD")
+    if not (admin and owner_password):
+        return None
+    owner = make_url(normalise_database_url(admin)).set(username=OWNER, password=owner_password)
+    return owner.render_as_string(hide_password=False)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m app.cli", description="Veyl operator commands."
@@ -154,6 +202,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     seed.add_argument("--api-url", required=True, help="e.g. http://api:8000")
     seed.add_argument("--wait", type=float, default=300.0, help="seconds to wait for ingestion")
+    reset = commands.add_parser(
+        "reset-demo",
+        help="Return the demo to its seeded state (nightly). Password from VEYL_DEMO_PASSWORD.",
+    )
+    reset.add_argument("--api-url", required=True, help="e.g. http://api:8000")
+    reset.add_argument("--wait", type=float, default=300.0, help="seconds to wait for ingestion")
     bootstrap = commands.add_parser(
         "bootstrap-database",
         help=(
@@ -171,10 +225,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     password_env = (
         "VEYL_ADMIN_PASSWORD" if args.command == "provision-tenant" else "VEYL_DEMO_PASSWORD"
     )
-    database_url = os.environ.get("MIGRATIONS_DATABASE_URL")
+    database_url = _owner_url()
     password = os.environ.get(password_env)
     if not database_url:
-        print("MIGRATIONS_DATABASE_URL must be set (owner role).", file=sys.stderr)
+        print(
+            "Set MIGRATIONS_DATABASE_URL (owner role), or ADMIN_DATABASE_URL and "
+            "VEYL_OWNER_PASSWORD to connect as the owner on the same host.",
+            file=sys.stderr,
+        )
         return 2
     if not password:
         print(
@@ -187,6 +245,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "provision-tenant":
             return _provision(engine, args, password)
+        if args.command == "reset-demo":
+            return _reset_demo(engine, args, password)
         return _seed_demo(engine, args, password)
     finally:
         engine.dispose()

@@ -299,12 +299,12 @@ Fifty-two decisions are recorded with their alternatives in the [decision log](d
 | Suite | Size | Runs against |
 |---|---|---|
 | Backend unit | 102 test functions | Policy, chunker, prompt builder, citation parser, extractors |
-| Backend integration | 114 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
+| Backend integration | 119 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
 | Backend security | 102 test functions | The threat model, end to end through the API |
 | Frontend | 73 tests | Vitest and Testing Library |
 | Compose smoke (CI) | 12 steps | The full stack: owner credentials absent from the API and worker, sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
 
-With parametrisation the backend collects **386 tests**. Highlights:
+With parametrisation the backend collects **391 tests**. Highlights:
 
 - **Demo scenario:** seeds both companies through the API and asserts on every recorded prompt. Disabling the clearance and grant rules in both the SQL filter and the Python re-check makes four of its seven tests fail.
 - **Filter equivalence:** an exhaustive test over every combination of tenants, users, roles, classifications, and grants proves the SQL read filter and the Python rule agree; Hypothesis property tests cover the policy and chunker invariants.
@@ -356,7 +356,9 @@ Then sign in as that admin, add people on the People page, and upload documents.
 
 **Reset:** `docker compose down -v` removes the containers, the database, and uploads. The database init script runs only when its volume is first created, so recreate the volume after changing database passwords.
 
-**Hosted Postgres (Neon and similar).** Where the provider's admin role can create roles but is not a superuser, `python -m app.cli bootstrap-database --migrate` (reading `ADMIN_DATABASE_URL`, `VEYL_OWNER_PASSWORD`, `VEYL_APP_PASSWORD` from the environment) creates the same two least-privilege roles as Compose, runs the migrations as the owner, and prints the API's connection string with the password left as a placeholder. The **Database setup** workflow in GitHub Actions runs it from repository secrets; the full public-demo setup is in the [hosting plan](docs/superpowers/plans/2026-10-21-hosting.md).
+**Hosted Postgres (Neon and similar).** Where the provider's admin role can create roles but is not a superuser, `python -m app.cli bootstrap-database --migrate` (reading `ADMIN_DATABASE_URL`, `VEYL_OWNER_PASSWORD`, `VEYL_APP_PASSWORD` from the environment) creates the same two least-privilege roles as Compose, runs the migrations as the owner, and prints the API's connection string with the password left as a placeholder. The **Database setup** workflow in GitHub Actions runs it from repository secrets.
+
+**Public demo.** [docs/deploy.md](docs/deploy.md) is the step-by-step guide for running the demo for free on Neon, Render ([`render.yaml`](render.yaml)), and Vercel. GitHub Actions seeds it (**Seed demo**) and resets it every night (**Reset demo**, `python -m app.cli reset-demo`): seeded people get their roles and password back, people and documents visitors added are removed, deleted or re-shared seed documents are uploaded again through the API, sessions and conversations end, and audit records are kept, with one "Demo reset" event added per company.
 
 **A second copy** on the same machine would share the first one's Compose project (`name: veyl`) and data; add `-p veyl-copy` to every Compose command in that copy.
 
@@ -453,8 +455,9 @@ Stated rather than hidden; the full list is in the [threat model](docs/threat-mo
 | [Threat model](docs/threat-model.md) | Assets, actors, seventeen threats with mitigations and tests, limitations, open items |
 | [API reference](docs/api.md) | Every endpoint with permissions and `curl` examples |
 | [Demo walkthrough](docs/demo.md) | Seeding and the step-by-step scenario |
+| [Deployment](docs/deploy.md) | The free public demo on Neon, Render, and Vercel, step by step |
 | [Design spec](docs/superpowers/specs/2026-10-15-veyl-design.md) | The original design: authorization model, schema, pipelines |
-| [Decision log](docs/decisions.md) | Fifty-two recorded decisions with alternatives and reasons |
+| [Decision log](docs/decisions.md) | Fifty-six recorded decisions with alternatives and reasons |
 | [Dev log](docs/devlog.md) | Chronological record of the work, including every review finding and how it was resolved |
 
 ## Security

@@ -37,6 +37,7 @@ EVENT_TYPES = frozenset(
         "user.deactivated",
         "tenant.updated",
         "audit.viewed",
+        "demo.reset",
     }
 )
 

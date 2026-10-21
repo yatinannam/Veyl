@@ -1,0 +1,32 @@
+name: Seed demo
+
+# Run by hand once, after the API is live. Creates Acme and Globex as the owner role, then
+# everything else through the public API, and waits until every document is processed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      API_URL: ${{ vars.VEYL_API_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - run: uv sync --frozen --no-dev
+      - name: Wake the API
+        run: curl -fsS --retry 20 --retry-delay 10 --retry-all-errors --max-time 120 "$API_URL/api/v1/readyz"
+      - name: Seed through the API
+        env:
+          # The owner connects to the same host as the admin URL, with its own password.
+          ADMIN_DATABASE_URL: ${{ secrets.NEON_ADMIN_URL }}
+          VEYL_OWNER_PASSWORD: ${{ secrets.VEYL_OWNER_PASSWORD }}
+          VEYL_DEMO_PASSWORD: ${{ vars.VEYL_DEMO_PASSWORD }}
+        run: uv run python -m app.cli seed-demo --api-url "$API_URL" --wait 900

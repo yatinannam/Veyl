@@ -17,6 +17,7 @@ export const EVENT_LABELS: Record<string, string> = {
   "user.deactivated": "Person deactivated",
   "tenant.updated": "Workspace settings changed",
   "audit.viewed": "Audit log viewed",
+  "demo.reset": "Demo reset",
 };
 
 export interface AuditFilters {

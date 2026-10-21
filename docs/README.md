@@ -6,6 +6,7 @@
 | [threat-model.md](threat-model.md) | Assets, actors, threats T1 to T17 with mitigations and the tests that prove them, known limitations, open items |
 | [api.md](api.md) | Every endpoint with who may call it and curl examples |
 | [demo.md](demo.md) | Seeding the two-company demo and the step-by-step walkthrough |
+| [deploy.md](deploy.md) | Deploying the free public demo: Neon, Render, Vercel, GitHub Actions, nightly reset |
 | [devlog.md](devlog.md) | Chronological log of work done, newest first |
 | [decisions.md](decisions.md) | Decision log — what was chosen, alternatives, and why |
 | [superpowers/specs/2026-10-15-veyl-design.md](superpowers/specs/2026-10-15-veyl-design.md) | Full design spec: architecture, authorization model, schema, API, threat model, phases |

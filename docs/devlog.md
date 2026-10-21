@@ -2,6 +2,19 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-21 — Hosting, Batch H4: demo reset and deployment files
+
+**Done**
+- *`python -m app.cli reset-demo` (D-056).* In one owner transaction per company: name and audit setting restored, policy version bumped; each seeded person gets their role, active state, and the demo password back (created again if missing); one untouched copy of each seed document is kept and every other document row is deleted (visitors' uploads, re-shared or deleted seed documents; chunks and jobs cascade); all sessions, conversations, and cached retrievals are deleted; people visitors added are deleted; one `demo.reset` audit event is added. Then, through the API as the admin, missing seed documents are uploaded again, the session is signed out, and the command waits for processing. Audit records are never touched.
+- *Owner connection on a hosted database.* With `ADMIN_DATABASE_URL` and `VEYL_OWNER_PASSWORD` (and no `MIGRATIONS_DATABASE_URL`), the CLI connects as `veyl_owner` to the admin URL's host and database; the admin credentials are never used.
+- The seed and reset take the list of companies (tests use their own copies), the HTTP client waits up to 120 seconds for a waking API, and the seed signs out its sessions when done. "Demo reset" is a new audit event type in the API and the dashboard.
+- *Deployment files.* [`render.yaml`](../render.yaml) (one free Docker web service in Singapore, deploys after CI passes and only for `backend/` changes, prompts for the three secrets, generates the audit key, sets the measured memory settings, 4 MB uploads, 25 documents per company, 15-second database connect timeout); workflows **Seed demo** (manual) and **Reset demo** (nightly at 20:30 UTC and manual), both waking the API first; and [docs/deploy.md](deploy.md), the step-by-step guide with a table of where each secret lives.
+
+**Verified** — on a Compose stack configured like Render (worker thread, 512 MB): seeded, deleted a seed document and added a person through the API, ran `reset-demo` through the CLI: "5 people restored, 1 added people removed, 1 documents removed; uploaded again: IT Help FAQ; Demo ready". The old session returned 401 and the demo permission smoke checks passed.
+
+**Tests** — `integration/test_demo_reset.py`: a visitor adds an admin who demotes Alice; Mark is demoted, Mia deactivated, the handbook re-shared, the FAQ deleted, the workspace renamed, a file uploaded, a question asked. After the reset: seeded people and roles exactly, the visitor gone and signed out, name and audit setting restored, no live sessions or conversations, exactly one ready copy of each seed document with the seed ACL (only the two changed ones uploaded again), audit records only added, one reset event, Alice signs in as admin. Also: an untouched demo keeps every document id; a missing company is refused; the CLI requires an owner connection; the owner URL is derived from the admin URL. An existing seed test assumed Mark's email existed in one company only; it now looks him up in Acme. 391 backend tests.
+**Next** — Batch H5 (go live): the user follows docs/deploy.md; then I verify the live demo.
+
 ## 2026-10-21 — Hosting, Batch H3: the dashboard for Vercel
 
 **Done**

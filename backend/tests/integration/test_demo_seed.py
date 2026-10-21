@@ -49,11 +49,13 @@ def test_seed_creates_both_companies_through_the_api(
 
 
 def test_marks_review_is_shared_with_mark_only(owner_engine: Engine, demo_world: DemoWorld) -> None:
+    tenant_id, _, docs = _tenant(owner_engine, "acme")
     with owner_engine.connect() as conn:
         mark = conn.execute(
-            select(users.c.id).where(users.c.email == "mark@acme.test")
+            select(users.c.id).where(
+                users.c.tenant_id == tenant_id, users.c.email == "mark@acme.test"
+            )
         ).scalar_one()
-    _, _, docs = _tenant(owner_engine, "acme")
     review = docs["Mark's Performance Review"]
     alice_id = review.uploaded_by
     assert set(review.allowed_user_ids) == {mark, alice_id}
