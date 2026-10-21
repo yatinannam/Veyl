@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-21 — Hosting plan
+
+**Done** — researched free hosting with no card and wrote the [hosting plan](superpowers/plans/2026-10-21-hosting.md): Neon for Postgres with pgvector, one Render free web service for the API with the ingestion worker in-process, Vercel Hobby for the dashboard, GitHub Actions for migrations, seeding, and a nightly reset of the fully interactive demo (D-053). Five batches: managed-Postgres bootstrap, single-service API (in-process worker, trusted client IP via a proxy secret, upload cap, 512 MB memory check), Vercel dashboard (proxy, wake-up message, demo accounts on the sign-in page, bundled fonts), demo reset and deployment files with a step-by-step guide, then going live.
+Checked: Vercel overwrites `X-Forwarded-For` (no spoofing through Vercel); Vercel supports pnpm 11; Neon's admin role can create roles but is not a superuser, pgvector is on every plan; Render free services sleep after 15 minutes and have an ephemeral disk; Hugging Face Docker Spaces now need a paid plan.
+**Next** — Batch H1.
+
 ## 2026-10-20 — Hardening review: fixes and deferred items
 
 **Review** — independent review of the whole hardening pass: no Critical, 1 Important, 6 Minor. It re-ran the suites, brought up a scratch stack with every hardening setting (seed, ingestion through the read-only worker, a cited query), and confirmed the pinned action SHAs.
