@@ -1,3 +1,4 @@
+import re
 import time
 
 import pytest
@@ -25,3 +26,16 @@ def test_readyz_fails_closed_when_database_unreachable() -> None:
     assert response.status_code == 503
     assert response.json() == {"status": "unavailable"}
     assert time.monotonic() - started < 10
+
+
+def test_readiness_failures_log_the_reason_without_the_password(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    url = "postgresql://veyl_app:Sup3r-Secret-Pw@127.0.0.1:1/veyl?sslmode=disable"
+    app = create_app(Settings(database_url=url))
+    with caplog.at_level("WARNING"), TestClient(app) as client:
+        client.get("/api/v1/readyz")
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    # The driver's error class and message, e.g. "(ConnectionTimeout: ...)".
+    assert re.search(r"readiness check failed: database unreachable \(\w+: .+\)", logged)
+    assert "Sup3r-Secret-Pw" not in logged

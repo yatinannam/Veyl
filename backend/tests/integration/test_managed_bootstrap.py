@@ -140,8 +140,45 @@ def test_the_cli_reads_the_admin_url_and_passwords_from_the_environment(
     out = capsys.readouterr().out
     assert "veyl_owner" in out and "veyl_app" in out
     assert "migrations: at the latest revision" in out
+    assert "check: veyl_app can sign in" in out
     # The API's connection string, ready to paste, with the password left as a placeholder.
     host = make_url(managed.admin_url).host
     assert f"postgresql://veyl_app:<VEYL_APP_PASSWORD>@{host}" in out
     for secret in (make_url(managed.admin_url).password, OWNER_PASSWORD, APP_PASSWORD):
         assert secret not in out
+
+
+def test_the_cli_reports_an_app_password_that_does_not_work(
+    managed: Managed,
+    bootstrapped: Managed,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("ADMIN_DATABASE_URL", managed.admin_url)
+    monkeypatch.setenv("VEYL_OWNER_PASSWORD", OWNER_PASSWORD)
+    monkeypatch.setenv("VEYL_APP_PASSWORD", APP_PASSWORD)
+    # Someone changed the role's password elsewhere; the secret no longer matches.
+    admin = create_engine(normalise_database_url(managed.admin_url))
+    with admin.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("ALTER ROLE veyl_app PASSWORD 'Other-Pw-9k2m4n6b8v1c3x5z'"))
+    admin.dispose()
+    original = bootstrap_database
+
+    def without_password_update(*args: str) -> object:
+        report = original(*args)
+        with (
+            create_engine(normalise_database_url(managed.admin_url))
+            .connect()
+            .execution_options(isolation_level="AUTOCOMMIT") as conn
+        ):
+            conn.execute(text("ALTER ROLE veyl_app PASSWORD 'Other-Pw-9k2m4n6b8v1c3x5z'"))
+        return report
+
+    monkeypatch.setattr(cli, "bootstrap_database", without_password_update)
+    try:
+        assert cli.main(["bootstrap-database"]) == 1
+        err = capsys.readouterr().err
+        assert "veyl_app cannot sign in" in err and "password authentication failed" in err
+        assert APP_PASSWORD not in err and "Other-Pw-9k2m4n6b8v1c3x5z" not in err
+    finally:
+        bootstrap_database(managed.admin_url, OWNER_PASSWORD, APP_PASSWORD)

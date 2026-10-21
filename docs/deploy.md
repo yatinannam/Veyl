@@ -98,7 +98,7 @@ GitHub pauses scheduled workflows in a repository with no activity for 60 days; 
 |---|---|
 | Database setup fails with `OperationalError` | `NEON_ADMIN_URL` is the pooled string or is missing `sslmode=require`; copy it again with pooling off. |
 | Render deploy fails at start with a settings error | A prompted value is missing or `PROXY_SHARED_SECRET` is shorter than 32 characters. |
-| `readyz` shows `unavailable` | `DATABASE_URL` is wrong (check the app password was substituted) or Neon is waking; try again after a minute. |
+| `readyz` shows `unavailable` | The API cannot reach the database. Open the service's **Logs** in Render and find `readiness check failed: database unreachable (...)`: the part in brackets is the database's own reason, with passwords removed. `password authentication failed`: the password inside `DATABASE_URL` is not `VEYL_APP_PASSWORD` (re-run **Database setup**: its `check: veyl_app can sign in` line proves the secret works, so the Render value was mistyped; it must contain no `<`, `>`, quotes, or spaces). `could not translate host name` or `timeout`: the host part was changed or Neon is waking; try again after a minute. |
 | Seed says "Demo already seeded" | It was seeded before; run **Reset demo** instead. |
 | Sign-in fails with every demo account | `VEYL_DEMO_PASSWORD` and `NEXT_PUBLIC_DEMO_PASSWORD` differ; fix one, then run **Reset demo** (and redeploy Vercel if you changed its value). |
 | Vercel build fails on pnpm | `ENABLE_EXPERIMENTAL_COREPACK=1` is missing. |

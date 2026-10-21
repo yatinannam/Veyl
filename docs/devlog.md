@@ -2,6 +2,18 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-21 — Hosting, Batch H5 (in progress): first deployment, database unreachable
+
+**Problem** — after the user created the Render service, `/api/v1/healthz` answered 200 but `/api/v1/readyz` answered 503, and **Seed demo** failed because its wake-up step never saw the API ready (21 attempts over about 3.5 minutes). The API process was up; it could not reach Neon. The cause could not be seen: `readyz` hides it from callers by design, and the log line did not record it either.
+
+**Done**
+- A failed readiness check now logs the database driver's own reason, `readiness check failed: database unreachable (ConnectionTimeout: ...)`, with the connection password, any URL credentials, and any `password=` setting removed (`app/db/diagnose.py`). Callers still see only `{"status": "unavailable"}`.
+- **Database setup** now signs in as `veyl_app` exactly as the API will and prints `check: veyl_app can sign in with VEYL_APP_PASSWORD`, or fails with the safe reason. If it passes, a 503 on Render means the value typed into Render differs from the secret.
+- Found while testing the new log line: running migrations in-process (Alembic's `fileConfig`) disabled every logger that already existed, including the API's. It now keeps them (`disable_existing_loggers=False`).
+- Troubleshooting in docs/deploy.md explains how to read the reason in Render's logs.
+
+**Tests** — the reason helper uses the driver error, removes secrets, URL credentials, and password settings, and flattens newlines; the readiness log carries a reason and never the password; the bootstrap CLI reports an app password that does not work, without echoing either password. 395 backend tests.
+
 ## 2026-10-21 — Hosting, Batch H4: demo reset and deployment files
 
 **Done**

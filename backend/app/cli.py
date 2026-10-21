@@ -9,10 +9,12 @@ from urllib.parse import urlencode
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.bootstrap import APP, OWNER, bootstrap_database
+from app.db.diagnose import describe_db_error
 from app.db.engine import create_db_engine, normalise_database_url
 from app.demo.http import DemoApiError, UrllibTransport
 from app.demo.reset import DemoMissing, reset_demo
@@ -144,6 +146,20 @@ def _bootstrap(migrate: bool) -> int:
             print(f"error: migrations failed ({type(exc).__name__})", file=sys.stderr)
             return 1
         print("migrations: at the latest revision")
+    # Sign in exactly as the API will, so a wrong password shows up here, not on the host.
+    app_url = admin.set(username=APP, password=values["VEYL_APP_PASSWORD"])
+    try:
+        check = create_db_engine(
+            app_url.render_as_string(hide_password=False), connect_timeout_seconds=15
+        )
+        with check.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        check.dispose()
+    except SQLAlchemyError as exc:
+        secrets = [values["VEYL_APP_PASSWORD"], values["VEYL_OWNER_PASSWORD"], admin.password]
+        print(f"error: {APP} cannot sign in ({describe_db_error(exc, secrets)})", file=sys.stderr)
+        return 1
+    print(f"check: {APP} can sign in with VEYL_APP_PASSWORD")
     print("API connection string (put the app password in place of the placeholder):")
     print(f"  {_url_template(admin, APP, '<VEYL_APP_PASSWORD>')}")
     return 0
