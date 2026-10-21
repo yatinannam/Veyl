@@ -67,10 +67,11 @@ def test_isolated_extraction_reports_extraction_errors() -> None:
 
 
 def test_pathological_pdf_is_stopped_by_the_time_limit() -> None:
-    # About 6 KB on disk, about 8 s of pypdf time unbounded (quadratic in stream size).
+    # About 24 KB on disk and about 10 s of pypdf time unbounded on a laptop; the limit is
+    # set far below that so a fast CI runner cannot finish inside it.
     started = time.monotonic()
     with pytest.raises(ExtractionError, match="too long"):
-        _isolated("pdf", make_heavy_pdf(2_000_000), timeout_seconds=2)
+        _isolated("pdf", make_heavy_pdf(8_000_000), timeout_seconds=1)
     assert time.monotonic() - started < 6
 
 

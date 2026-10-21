@@ -222,9 +222,9 @@ def test_pathological_pdf_fails_permanently_instead_of_stalling_the_worker(
 ) -> None:
     storage = LocalStorage(tmp_path)
     document_id = _upload(
-        app_engine, storage, _admin(seeded), "bomb.pdf", make_heavy_pdf(2_000_000)
+        app_engine, storage, _admin(seeded), "bomb.pdf", make_heavy_pdf(8_000_000)
     )
-    ingestor = Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50, timeout_seconds=2)
+    ingestor = Ingestor(app_engine, storage, FakeEmbedder(), max_pdf_pages=50, timeout_seconds=1)
     assert ingestor.run_once() is True
     doc = _document(owner_engine, document_id)
     assert (doc.status, doc.error) == ("failed", "document took too long to process")
