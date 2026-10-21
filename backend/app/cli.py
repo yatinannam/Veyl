@@ -4,9 +4,16 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from pathlib import Path
+from urllib.parse import urlencode
 
-from sqlalchemy import Engine, create_engine
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import Engine
+from sqlalchemy.engine import URL, make_url
 
+from app.bootstrap import APP, OWNER, bootstrap_database
+from app.db.engine import create_db_engine, normalise_database_url
 from app.demo.http import DemoApiError, UrllibTransport
 from app.demo.seed import (
     AlreadySeeded,
@@ -71,6 +78,64 @@ def _seed_demo(engine: Engine, args: argparse.Namespace, password: str) -> int:
     return 0
 
 
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def _bootstrap(migrate: bool) -> int:
+    names = ("ADMIN_DATABASE_URL", "VEYL_OWNER_PASSWORD", "VEYL_APP_PASSWORD")
+    values = {name: os.environ.get(name, "") for name in names}
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        print(f"Set {', '.join(missing)}; secrets are never taken as arguments.", file=sys.stderr)
+        return 2
+    try:
+        report = bootstrap_database(
+            values["ADMIN_DATABASE_URL"],
+            values["VEYL_OWNER_PASSWORD"],
+            values["VEYL_APP_PASSWORD"],
+        )
+    except Exception as exc:  # report the cause without echoing any URL or password
+        print(f"error: bootstrap failed ({type(exc).__name__})", file=sys.stderr)
+        return 1
+    for item in report.done:
+        print(f"done: {item}")
+    for item in report.skipped:
+        print(f"skipped: {item}")
+    admin = make_url(normalise_database_url(values["ADMIN_DATABASE_URL"]))
+    if migrate:
+        owner = admin.set(username=OWNER, password=values["VEYL_OWNER_PASSWORD"])
+        try:
+            _run_migrations(owner.render_as_string(hide_password=False))
+        except Exception as exc:
+            print(f"error: migrations failed ({type(exc).__name__})", file=sys.stderr)
+            return 1
+        print("migrations: at the latest revision")
+    print("API connection string (put the app password in place of the placeholder):")
+    print(f"  {_url_template(admin, APP, '<VEYL_APP_PASSWORD>')}")
+    return 0
+
+
+def _run_migrations(owner_url: str) -> None:
+    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    # Config values pass through configparser interpolation.
+    config.set_main_option("sqlalchemy.url", owner_url.replace("%", "%%"))
+    command.upgrade(config, "head")
+
+
+def _url_template(admin: URL, user: str, password: str) -> str:
+    port = f":{admin.port}" if admin.port else ""
+    query = urlencode(
+        [
+            (k, v)
+            for k, values in admin.query.items()
+            for v in ([values] if isinstance(values, str) else values)
+        ]
+    )
+    suffix = f"?{query}" if query else ""
+    return f"postgresql://{user}:{password}@{admin.host}{port}/{admin.database}{suffix}"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m app.cli", description="Veyl operator commands."
@@ -89,7 +154,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     seed.add_argument("--api-url", required=True, help="e.g. http://api:8000")
     seed.add_argument("--wait", type=float, default=300.0, help="seconds to wait for ingestion")
+    bootstrap = commands.add_parser(
+        "bootstrap-database",
+        help=(
+            "One-time setup of a managed Postgres: roles and privileges. Reads "
+            "ADMIN_DATABASE_URL, VEYL_OWNER_PASSWORD, VEYL_APP_PASSWORD."
+        ),
+    )
+    bootstrap.add_argument(
+        "--migrate", action="store_true", help="then run the migrations as the owner role"
+    )
     args = parser.parse_args(argv)
+    if args.command == "bootstrap-database":
+        return _bootstrap(args.migrate)
 
     password_env = (
         "VEYL_ADMIN_PASSWORD" if args.command == "provision-tenant" else "VEYL_DEMO_PASSWORD"
@@ -106,7 +183,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
-    engine = create_engine(database_url)
+    engine = create_db_engine(database_url)
     try:
         if args.command == "provision-tenant":
             return _provision(engine, args, password)

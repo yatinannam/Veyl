@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-21 — Hosting, Batch H1: database bootstrap for managed Postgres
+
+**Done** — `python -m app.cli bootstrap-database [--migrate]` sets up a hosted Postgres where the admin role can create roles but is not a superuser (Neon's `neondb_owner`): it creates or updates `veyl_owner` and `veyl_app` with the same least-privilege attributes as Compose (verifying them on re-runs), creates the extensions, applies the database and schema grants, sets the owner's default privileges as the owner itself, skips (and reports) the maintenance-database revokes the provider controls, optionally runs the migrations as the owner, and prints the API's connection string with a password placeholder. Never prints a password or URL secret; errors report only their type. `postgresql://` URLs from hosting providers now map to the psycopg driver everywhere (API, worker, migrations, CLI). Manual **Database setup** workflow added (moved forward from H4 so the database can be configured now). Tested on a separate Postgres 17 container laid out like a fresh Neon project: roles least-privilege, app role cannot create tables, temp tables, or call new owner functions, RLS forced, re-runs idempotent. 369 backend tests.
+**Next** — Batch H2 (API as one free service).
+
 ## 2026-10-21 — Hosting plan
 
 **Done** — researched free hosting with no card and wrote the [hosting plan](superpowers/plans/2026-10-21-hosting.md): Neon for Postgres with pgvector, one Render free web service for the API with the ingestion worker in-process, Vercel Hobby for the dashboard, GitHub Actions for migrations, seeding, and a nightly reset of the fully interactive demo (D-053). Five batches: managed-Postgres bootstrap, single-service API (in-process worker, trusted client IP via a proxy secret, upload cap, 512 MB memory check), Vercel dashboard (proxy, wake-up message, demo accounts on the sign-in page, bundled fonts), demo reset and deployment files with a step-by-step guide, then going live.

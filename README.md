@@ -353,6 +353,8 @@ Then sign in as that admin, add people on the People page, and upload documents.
 
 **Reset:** `docker compose down -v` removes the containers, the database, and uploads. The database init script runs only when its volume is first created, so recreate the volume after changing database passwords.
 
+**Hosted Postgres (Neon and similar).** Where the provider's admin role can create roles but is not a superuser, `python -m app.cli bootstrap-database --migrate` (reading `ADMIN_DATABASE_URL`, `VEYL_OWNER_PASSWORD`, `VEYL_APP_PASSWORD` from the environment) creates the same two least-privilege roles as Compose, runs the migrations as the owner, and prints the API's connection string with the password left as a placeholder. The **Database setup** workflow in GitHub Actions runs it from repository secrets; the full public-demo setup is in the [hosting plan](docs/superpowers/plans/2026-10-21-hosting.md).
+
 **A second copy** on the same machine would share the first one's Compose project (`name: veyl`) and data; add `-p veyl-copy` to every Compose command in that copy.
 
 ## Development

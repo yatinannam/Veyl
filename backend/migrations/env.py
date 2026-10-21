@@ -4,6 +4,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
+from app.db.engine import normalise_database_url
+
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -15,7 +17,7 @@ def _database_url() -> str:
     url = config.get_main_option("sqlalchemy.url") or os.environ.get("MIGRATIONS_DATABASE_URL")
     if not url:
         raise RuntimeError("MIGRATIONS_DATABASE_URL is not set")
-    return url
+    return normalise_database_url(url)
 
 
 def run_migrations_offline() -> None:

@@ -1,0 +1,28 @@
+name: Database setup
+
+# Run by hand from the Actions tab. Creates the least-privilege roles on the hosted
+# database (Neon) and brings the schema to the latest migration. Safe to run again after
+# every release that adds a migration.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - run: uv sync --frozen --no-dev
+      - name: Roles, privileges, and migrations
+        env:
+          ADMIN_DATABASE_URL: ${{ secrets.NEON_ADMIN_URL }}
+          VEYL_OWNER_PASSWORD: ${{ secrets.VEYL_OWNER_PASSWORD }}
+          VEYL_APP_PASSWORD: ${{ secrets.VEYL_APP_PASSWORD }}
+        run: uv run python -m app.cli bootstrap-database --migrate
