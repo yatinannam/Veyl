@@ -164,6 +164,7 @@ The same walkthrough runs as an automated security test on every commit (`backen
 - **Documents:** what you can read, with live processing status. Managers and admins upload and share by role or by person; the classification picker offers only levels within the uploader's clearance.
 - **People and audit log** (admins): add people, change roles (applied only on an explicit save), deactivate with confirmation; filter the audit log by event, person, and date.
 - **Design:** one colour per classification level, always beside its name; a four-segment clearance meter in the header; motion limited to two short moments and disabled under reduced motion.
+- **Hosting:** `src/proxy.ts` forwards `/api/*` to `API_INTERNAL_URL`, read on every request, so one build serves any host; with `PROXY_SHARED_SECRET` it also tells the API the visitor's address. While the API is slow to answer (a free host waking from sleep) a notice reads "Starting up, this can take a minute" and reads are retried. With `NEXT_PUBLIC_DEMO_PASSWORD` set, the sign-in page offers the demo accounts as one-click sign-ins. Fonts are bundled from pinned packages, so builds never download them.
 - **No authority in the browser:** the dashboard only hides controls. The API checks every action, and an expired or revoked session returns the user to sign-in and back.
 
 ## Architecture
@@ -300,7 +301,7 @@ Fifty-two decisions are recorded with their alternatives in the [decision log](d
 | Backend unit | 102 test functions | Policy, chunker, prompt builder, citation parser, extractors |
 | Backend integration | 114 test functions | Real Postgres 16 with pgvector via testcontainers, with the same init script and least-privilege role as production |
 | Backend security | 102 test functions | The threat model, end to end through the API |
-| Frontend | 58 tests | Vitest and Testing Library |
+| Frontend | 73 tests | Vitest and Testing Library |
 | Compose smoke (CI) | 12 steps | The full stack: owner credentials absent from the API and worker, sign-in through the edge, ingestion, a cited answer, the seeded demo, IP rate limiting |
 
 With parametrisation the backend collects **386 tests**. Highlights:

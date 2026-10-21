@@ -120,10 +120,10 @@ services:
   web:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    build:
-      context: ./frontend
-      args:
-        API_INTERNAL_URL: http://api:8000
+    build: ./frontend
+    environment:
+      # Read by src/proxy.ts on every /api/* request.
+      API_INTERNAL_URL: http://api:8000
     depends_on:
       api:
         condition: service_healthy

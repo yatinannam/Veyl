@@ -2,6 +2,20 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
+## 2026-10-21 — Hosting, Batch H3: the dashboard for Vercel
+
+**Done**
+- *API forwarding (D-055).* `src/proxy.ts` now forwards `/api/*` itself, reading `API_INTERNAL_URL` per request (the build-time rewrite and the Docker build argument are gone; Compose sets it at run time). With `PROXY_SHARED_SECRET` it adds the secret and the visitor's address (the first `X-Forwarded-For` entry, which Vercel and Caddy both set; `X-Real-IP` is ignored because Caddy passes a client's value through). Any `X-Veyl-*` header a client sent is dropped. `proxyClientMaxBodySize` is 12 MB so uploads up to the API's limit are never truncated.
+- *Waking API.* The API client counts requests slower than 4 seconds and gateway answers (502, 503, 504 without a Veyl error body) as "starting up"; a live region in the root layout shows "Starting up, this can take a minute." Reads are retried every 3 seconds for up to 90; a change is never resent (it may already have been applied) and instead explains that Veyl is starting up. Veyl's own 503 stays an ordinary error.
+- *Demo accounts.* With `NEXT_PUBLIC_DEMO_PASSWORD` set at build, the sign-in page lists the five demo people with what each can see, the shared password, and a note that changes reset nightly; each is a one-click sign-in.
+- *Fonts.* IBM Plex Sans (400, 500, 600) and Source Serif 4 (variable) come from pinned `@fontsource` packages through `next/font/local`; builds no longer download from Google Fonts.
+- New message for `document_limit_reached`.
+
+**Verified** — in the real Compose images, with an echo server in place of the API: no secret, forged `X-Veyl-*` headers dropped; with the secret, the visitor IP is the edge-set address even when the client forges one; `Host` is the API's; an 11 MB body arrives intact.
+
+**Tests** — the API client's waking behaviour (retries through gateway errors and reports it, never resends a change, gives up after the window, Veyl's 503 is not waking, slow requests counted while pending), the proxy (target read at request time, secret and visitor added, client copies dropped or replaced, page redirect unchanged, `visitorIp`), the notice, and the demo accounts (hidden without the password, one-click sign-in). The waking tests caught a double count when a request was both slow and answered by the gateway, which left the notice on. 73 frontend tests.
+**Next** — Batch H4 (demo reset and deployment files).
+
 ## 2026-10-21 — Hosting, Batch H2: the API as one free service
 
 **Done**

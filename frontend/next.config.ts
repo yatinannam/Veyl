@@ -1,9 +1,5 @@
 import type { NextConfig } from "next";
 
-// Where the server-side proxy sends /api/* requests. Rewrites are compiled at build
-// time, so the Docker image receives this as a build arg.
-const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
-
 const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: true,
@@ -17,8 +13,10 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${apiUrl}/api/:path*` }];
+  experimental: {
+    // /api/* passes through src/proxy.ts, which buffers request bodies up to this size.
+    // Above the API's 10 MB upload limit plus multipart overhead, so the API decides.
+    proxyClientMaxBodySize: "12mb",
   },
 };
 

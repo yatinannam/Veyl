@@ -1,17 +1,25 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, Source_Serif_4 } from "next/font/google";
+import localFont from "next/font/local";
+
+import { StartingUpNotice } from "@/components/starting-up-notice";
 
 import "./globals.css";
 
-const sans = IBM_Plex_Sans({
+// Font files come from pinned npm packages (SIL Open Font License), so builds never
+// download from Google Fonts. next/font needs literal paths.
+const sans = localFont({
   variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  src: [
+    { path: "../../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
 });
 
-const serif = Source_Serif_4({
+const serif = localFont({
   variable: "--font-serif",
-  subsets: ["latin"],
+  src: "../../node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2",
+  weight: "200 900",
 });
 
 export const metadata: Metadata = {
@@ -22,7 +30,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
-      <body className="min-h-full bg-background font-sans text-foreground">{children}</body>
+      <body className="min-h-full bg-background font-sans text-foreground">
+        {children}
+        <StartingUpNotice />
+      </body>
     </html>
   );
 }

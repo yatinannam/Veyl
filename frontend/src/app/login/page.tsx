@@ -24,7 +24,7 @@ export default function LoginPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
             <p className="text-sm text-muted-foreground">Use the workspace your admin set up for you.</p>
           </div>
-          <LoginForm />
+          <LoginForm demoPassword={process.env.NEXT_PUBLIC_DEMO_PASSWORD || undefined} />
         </div>
       </section>
     </main>

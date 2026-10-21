@@ -66,4 +66,23 @@ describe("LoginForm", () => {
     );
     expect(replace).not.toHaveBeenCalled();
   });
+
+  it("offers no demo accounts unless the deployment publishes the password", () => {
+    render(<LoginForm />);
+    expect(screen.queryByRole("heading", { name: "Try the demo" })).not.toBeInTheDocument();
+  });
+
+  it("signs in as a demo account in one click", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<LoginForm demoPassword="demo-pass-123" />);
+    expect(screen.getByText("demo-pass-123")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Sign in as Mia/ }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/chat"));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      tenant_slug: "acme",
+      email: "mia@acme.test",
+      password: "demo-pass-123",
+    });
+  });
 });

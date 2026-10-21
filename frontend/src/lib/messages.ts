@@ -21,6 +21,10 @@ export function describeError(error: unknown): string {
     case "csrf_failed":
     case "unauthenticated":
       return "Your session has ended. Sign in again.";
+    case "starting_up":
+      return "Veyl is starting up, this can take a minute. Try again shortly.";
+    case "document_limit_reached":
+      return "This workspace has reached its document limit. Delete a document first.";
     case "network_error":
       return "Veyl can't be reached. Check your connection and try again.";
     default:
