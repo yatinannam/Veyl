@@ -2,6 +2,8 @@
 
 Two companies, five people, six synthetic documents, and a walkthrough that shows each guarantee holding: in the dashboard, with `curl`, and as an automated test (`backend/tests/security/test_demo_scenario.py`, which runs in CI).
 
+The same demo runs publicly at [veyl-kappa.vercel.app](https://veyl-kappa.vercel.app): the sign-in page lists the five people as one-click sign-ins, and everything visitors change is reset every night. To run it locally instead, start here.
+
 ## 1. Start and seed
 
 ```bash

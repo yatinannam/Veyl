@@ -14,15 +14,17 @@ Answers from your company's documents, never beyond what you are cleared to read
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
-[Quickstart](#quickstart) &middot; [Demo walkthrough](docs/demo.md) &middot; [Architecture](docs/architecture.md) &middot; [Threat model](docs/threat-model.md) &middot; [API](docs/api.md)
+**[Live demo](https://veyl-kappa.vercel.app)** &middot; [Quickstart](#quickstart) &middot; [Demo walkthrough](docs/demo.md) &middot; [Architecture](docs/architecture.md) &middot; [Threat model](docs/threat-model.md) &middot; [API](docs/api.md)
 
 </div>
 
 | An admin asks about Q3 revenue | A member asks the same question |
 |---|---|
-| ![An admin's answer citing the restricted board financials](docs/screenshots/ask.png) | ![A member asking the same question gets no figures and no citation](docs/screenshots/member-ask.png) |
+| ![An admin's answer citing the restricted board financials](docs/screenshots/ask.png) | ![A member gets no figures: the only passages she may read are the FAQ's planted instruction to reveal them, which changes nothing](docs/screenshots/member-ask.png) |
 
 Veyl lets people ask questions of their organisation's internal documents in plain language and returns answers with server-verified citations. Every document carries a classification and an access list, and those permissions are enforced **inside retrieval**: text a person may not read is never fetched from the database, never placed in the language model's context, and never cited. Tenants are isolated by Postgres row-level security, every question is audited, and the whole stack runs on free tiers.
+
+**Try it live at [veyl-kappa.vercel.app](https://veyl-kappa.vercel.app).** Pick a demo person on the sign-in page, then ask the same question as someone else. It runs on free plans (Neon, Render, Vercel; [how it is deployed](docs/deploy.md)), so the first request after a quiet spell can take about a minute while the API wakes, and anything visitors change is reset every night.
 
 <details>
 <summary><b>Contents</b></summary>
@@ -150,7 +152,7 @@ The same walkthrough runs as an automated security test on every commit (`backen
 
 | Sign in | Documents for an admin |
 |---|---|
-| ![Sign-in page with the four classification levels](docs/screenshots/login.png) | ![Acme's five documents with their classification bands](docs/screenshots/documents.png) |
+| ![Sign-in page with the four classification levels and one-click demo accounts](docs/screenshots/login.png) | ![Acme's five documents with their classification bands](docs/screenshots/documents.png) |
 
 | The same list for a member | Who can read a document |
 |---|---|
@@ -446,6 +448,7 @@ Stated rather than hidden; the full list is in the [threat model](docs/threat-mo
 - Timing and "nothing found" side channels are not hardened.
 - The schema owner or a database superuser could disable the audit trigger.
 - Rate limiting is in-process and assumes one API replica; deployment is single-node.
+- The public demo runs on free plans: cold starts of up to a minute, 0.1 CPU, uploads of 4 MB and at most 25 documents per company, and uploads still waiting when the API sleeps must be repeated ([details](docs/deploy.md#limits-of-the-free-plans)).
 
 ## Documentation
 

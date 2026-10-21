@@ -86,9 +86,13 @@ If the API was asleep, the dashboard says "Starting up, this can take a minute" 
 
 GitHub pauses scheduled workflows in a repository with no activity for 60 days; re-enable **Reset demo** from the Actions tab if that happens.
 
+## Checking a deployment
+
+**Live check** (Actions tab, manual; give it the dashboard address) confirms the dashboard reaches the API and that 21 failed sign-ins through the dashboard, each with a forged `X-Forwarded-For`, end in 429. Afterwards, sign in from your own browser: if that works while GitHub's runner is blocked, the limit is per visitor, which also proves the proxy secrets on Render and Vercel match.
+
 ## Limits of the free plans
 
-- **Cold starts.** Render stops the API after 15 minutes without traffic, and Neon suspends the database after 5. The first request afterwards takes up to about a minute.
+- **Cold starts.** Render stops the API after 15 minutes without traffic, and Neon suspends the database after 5. The first request afterwards takes up to about a minute (35 seconds measured for a sign-in).
 - **Uploads are temporary files.** Render's disk is wiped on every restart. Text is extracted and embedded shortly after upload and lives in the database, so answers keep working; an upload still waiting when the service sleeps fails and can be uploaded again.
 - **Small and slow.** 0.1 CPU and 512 MB: uploads are limited to 4 MB and 25 documents per company, and processing takes seconds rather than milliseconds.
 - **Groq's free tier** has per-minute limits; when it is busy, the API answers "the answer service is unavailable" rather than anything less safe.

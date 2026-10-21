@@ -21,7 +21,7 @@ async function signIn(email, password) {
   await page.getByLabel("Workspace").fill(process.env.VEYL_WORKSPACE);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/chat");
   return page;
 }

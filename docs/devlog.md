@@ -2,7 +2,19 @@
 
 Newest entries first. Each entry: what was done, what's next, anything blocked.
 
-## 2026-10-21 — Hosting, Batch H5 (in progress): first deployment, database unreachable
+## 2026-10-21 — Hosting, Batch H5: live at https://veyl-kappa.vercel.app
+
+**Verified on the live demo**
+- *Walkthrough through Vercel:* the sign-in page lists the five demo people and the nightly-reset note; `/chat` without a session redirects to sign-in. Documents visible: Alice 5, Mark 4 (no financials), Mia 2, Gary 0. Asked "What was the Q3 revenue in the board financials?": Alice is answered (18.4 million USD) citing Q3 Board Financials; Mark, Mia, and Gary get no figures.
+- *Per-visitor rate limit through Vercel:* the new manual **Live check** workflow sent 21 failed sign-ins from a GitHub runner through the dashboard, each with a different forged `X-Forwarded-For`; the last was refused with 429. While that runner was blocked, sign-in from another address succeeded (200). So the API keys the limit on each visitor's address, which also proves the proxy secret on Vercel matches Render's (with a mismatch, all dashboard traffic would share one key and that sign-in would have been refused).
+- *Nightly reset, live:* **Reset demo** run by hand: "5 people restored, 0 added people removed, 0 documents removed; Demo ready", and the earlier test conversations were gone.
+- *Cold start:* after 17 minutes without traffic, the sign-in page loaded in 0.2 seconds (served by Vercel) and the first sign-in, which had to wake the API, succeeded in 35 seconds with no gateway error; the next took 1.9 seconds. The dashboard shows "Starting up, this can take a minute" after 4 seconds.
+- *Screenshots* retaken from the live site after the reset (the sign-in page now shows the demo accounts). The screenshot script now clicks the button named exactly "Sign in", since the demo buttons ("Sign in as Alice ...") also matched.
+- README: live demo link at the top, a "Try it live" paragraph, updated captions, and the free-plan limits under Limitations; docs/demo.md links the live demo.
+
+**Note for the user** — the published demo password contains a quote, a backslash, and a pipe. One-click sign-in hides this, but it is awkward to type and broke a hand-built JSON request during testing. Changing it to letters, digits, and hyphens is recommended (GitHub variable, Vercel variable and redeploy, then **Reset demo**).
+
+### Earlier in H5: first deployment, database unreachable
 
 **Problem** — after the user created the Render service, `/api/v1/healthz` answered 200 but `/api/v1/readyz` answered 503, and **Seed demo** failed because its wake-up step never saw the API ready (21 attempts over about 3.5 minutes). The API process was up; it could not reach Neon. The cause could not be seen: `readyz` hides it from callers by design, and the log line did not record it either.
 
